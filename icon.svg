@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#6c63ff"/>
+  <circle cx="256" cy="256" r="140" fill="none" stroke="white" stroke-width="28"/>
+  <line x1="256" y1="256" x2="256" y2="156" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <line x1="256" y1="256" x2="316" y2="296" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="16" fill="white"/>
+  <text x="256" y="460" text-anchor="middle" fill="white" font-size="72" font-family="sans-serif" font-weight="bold">OT</text>
+</svg>

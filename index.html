@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ระบบคำนวณ OT</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222536;
+    --surface3: #2a2e42;
+    --border: #2e3248;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffa94d;
+    --text: #e8eaf6;
+    --text2: #9399b8;
+    --text3: #5d6385;
+    --normal: #4a90d9;
+    --off: #9c6de8;
+    --holiday: #e86d6d;
+    --green: #00d4aa;
+    --mono: 'Consolas', 'Menlo', 'Courier New', monospace;
+    --sans: 'Leelawadee UI', 'Leelawadee', 'Thonburi', 'Noto Sans Thai', 'Tahoma', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12142000 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 32px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, #6c63ff22 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: 200px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, #00d4aa11 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header-inner { position: relative; z-index: 1; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 20px #6c63ff44;
+  }
+  .logo-text h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text p { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .header-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.3px;
+  }
+  .badge.active { background: #6c63ff22; border-color: var(--accent); color: var(--accent); }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 16px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    color: var(--text2);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    border-radius: 6px 6px 0 0;
+    position: relative;
+    bottom: -1px;
+  }
+  .tab-btn:hover { color: var(--text); background: var(--surface2); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--bg); }
+
+  /* ─── MAIN ─── */
+  .main { padding: 24px 32px; max-width: 1400px; }
+
+  /* ─── SETTINGS CARD ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; }
+  .field input, .field select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px #6c63ff22;
+  }
+  .field select { cursor: pointer; }
+
+  .rate-display {
+    background: linear-gradient(135deg, #6c63ff18, #00d4aa0a);
+    border: 1px solid #6c63ff44;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+
+  /* ─── INFO BOX ─── */
+  .info-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+  }
+  .info-box h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 12px; }
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .info-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  /* ─── HOW TO USE ─── */
+  .howto {
+    background: linear-gradient(135deg, #1a1d27, #1e2135);
+    border: 1px solid #6c63ff33;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .howto h3 { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 14px; letter-spacing: 0.5px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 26px; height: 26px;
+    background: var(--accent);
+    color: white;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .step-text { font-size: 12.5px; color: var(--text2); line-height: 1.5; }
+  .step-text strong { color: var(--text); display: block; margin-bottom: 2px; }
+
+  /* ─── ROW CARD ─── */
+  .row-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .row-card:hover { border-color: var(--surface3); }
+  .row-card.type-normal { border-left: 3px solid var(--normal); }
+  .row-card.type-off { border-left: 3px solid var(--off); }
+  .row-card.type-holiday { border-left: 3px solid var(--holiday); }
+
+  .row-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .row-num {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+  }
+  .row-date-display { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+
+  .delete-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text3);
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--sans);
+    transition: all 0.2s;
+  }
+  .delete-btn:hover { border-color: var(--accent3); color: var(--accent3); background: #ff6b6b11; }
+
+  .row-inputs {
+    display: grid;
+    grid-template-columns: 140px 160px repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px 20px;
+    align-items: end;
+  }
+  @media (max-width: 900px) {
+    .row-inputs { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .row-inputs { grid-template-columns: 1fr; }
+    .main { padding: 16px; }
+    .tabs { padding: 12px 16px 0; }
+  }
+
+  /* ─── RESULTS BAR ─── */
+  .row-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border-top: 1px solid var(--border);
+  }
+  .result-cell {
+    background: var(--surface2);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .result-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); }
+  .result-value { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+  .result-value.accent { color: var(--accent); }
+  .result-value.green { color: var(--green); }
+  .result-value.orange { color: var(--accent4); }
+  .result-value.purple { color: #b48eff; }
+  .result-value.big { font-size: 16px; color: var(--green); }
+
+  /* TYPE BADGE */
+  .type-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .type-badge.normal { background: #4a90d922; color: var(--normal); border: 1px solid #4a90d944; }
+  .type-badge.off { background: #9c6de822; color: var(--off); border: 1px solid #9c6de844; }
+  .type-badge.holiday { background: #e86d6d22; color: var(--holiday); border: 1px solid #e86d6d44; }
+
+  /* ─── ADD BUTTON ─── */
+  .add-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    color: var(--text2);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+    margin-bottom: 20px;
+  }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); background: #6c63ff0a; }
+
+  /* ─── SUMMARY TAB ─── */
+  .summary-hero {
+    background: linear-gradient(135deg, #1a1d27 0%, #1e2638 100%);
+    border: 1px solid #00d4aa33;
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .summary-hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: 50%;
+    transform: translateX(-50%);
+    width: 400px; height: 200px;
+    background: radial-gradient(ellipse, #00d4aa18, transparent 70%);
+  }
+  .summary-hero-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text2); margin-bottom: 8px; }
+  .summary-hero-amount {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent2), #4fffde);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+  .summary-hero-sub { font-size: 13px; color: var(--text2); margin-top: 8px; }
+
+  .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .s-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .s-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .s-card.normal::before { background: var(--normal); }
+  .s-card.off::before { background: var(--off); }
+  .s-card.holiday::before { background: var(--holiday); }
+  .s-card.night::before { background: linear-gradient(90deg, #6c63ff, #b48eff); }
+  .s-card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 12px; }
+  .s-card-amount { font-family: var(--mono); font-size: 24px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .s-card-sub { font-size: 12px; color: var(--text3); }
+
+  /* ─── TABLE ─── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .table-head { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text3);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    font-size: 12.5px;
+    color: var(--text2);
+    border-bottom: 1px solid #1e2135;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  td.mono { font-family: var(--mono); font-size: 12px; }
+  td.hl { color: var(--text); font-weight: 600; }
+  td.green { color: var(--green); font-weight: 700; font-family: var(--mono); }
+  td.orange { color: var(--accent4); font-family: var(--mono); }
+
+  /* ─── NIGHT SHIFT PILL ─── */
+  .night-pill {
+    background: #6c63ff22;
+    border: 1px solid #6c63ff44;
+    color: #b48eff;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-block;
+  }
+
+  /* ─── MISC ─── */
+  .hidden { display: none !important; }
+  .mt-4 { margin-top: 16px; }
+
+  /* tab content */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* scroll */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .overflow-x { overflow-x: auto; }
+
+  /* Notice */
+  .notice {
+    background: #6c63ff11;
+    border: 1px solid #6c63ff33;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+  .notice span { color: var(--accent); font-weight: 600; }
+
+  /* month summary line */
+  .month-label {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .month-label small { font-size: 13px; color: var(--text3); font-weight: 400; }
+
+  /* night warning */
+  .row-card.has-night .row-header { border-bottom-color: #6c63ff33; }
+</style>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="OT Calc"/>
+<meta name="theme-color" content="#6c63ff"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">⏱</div>
+        <div class="logo-text">
+          <h1>ระบบคำนวณ OT</h1>
+          <p>Overtime Calculator · สำหรับใช้งานส่วนตัวและแชร์เพื่อนได้</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge active">วันปกติ 1.5×</span>
+        <span class="badge">วันหยุด 1×</span>
+        <span class="badge">นักขัตฤกษ์ 1×/3×</span>
+        <span class="badge">🌙 Night Shift +200฿</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('input')">📋 บันทึกรายวัน</button>
+  <button class="tab-btn" onclick="switchTab('summary')">📊 สรุปรายเดือน</button>
+  <button class="tab-btn" onclick="switchTab('guide')">📖 คู่มือการใช้งาน</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ─── INPUT TAB ─── -->
+  <div id="tab-input" class="tab-content active">
+
+    <!-- Settings -->
+    <div class="card">
+      <div class="card-title">⚙️ ตั้งค่าทั่วไป</div>
+      <div class="settings-grid">
+        <div class="field">
+          <label>ฐานเงินเดือน (฿)</label>
+          <input type="number" id="salary" value="19500" min="0" step="100" oninput="recalcAll()"/>
+        </div>
+        <div class="field">
+          <label>อัตราต่อชั่วโมง</label>
+          <div class="rate-display" id="rateDisplay">—</div>
+        </div>
+        <div class="field">
+          <label>เดือน</label>
+          <select id="selMonth" onchange="recalcAll()">
+            <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option>
+            <option value="2">มีนาคม</option><option value="3">เมษายน</option>
+            <option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
+            <option value="6">กรกฎาคม</option><option value="7">สิงหาคม</option>
+            <option value="8">กันยายน</option><option value="9">ตุลาคม</option>
+            <option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>ปี (พ.ศ.)</label>
+          <input type="number" id="selYear" value="2568" min="2500" oninput="recalcAll()"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Rules -->
+    <div class="info-box">
+      <h3>📐 กฎการคำนวณ (อ้างอิงอัตโนมัติ)</h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--normal)"></div>
+          <span><strong style="color:var(--normal)">วันปกติ</strong> — OT × <strong>1.5×</strong> ต่อชั่วโมง</span>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--off)"></div>
+          <span><strong style="color:var(--off)">วันหยุด OFF</strong> — OT × <strong>1×</strong> ต่อชั่วโมง</span>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--holiday)"></div>
+          <span><strong style="color:var(--holiday)">นักขัตฤกษ์</strong> — ≤10ชม.รวม × <strong>1×</strong> · &gt;10ชม.รวม × <strong>3×</strong></span>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:#b48eff"></div>
+          <span><strong style="color:#b48eff">🌙 Night Shift</strong> — +200฿/วัน (เข้างาน 02:00–03:00 หรือ เลิกงาน ≥02:00)</span>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--accent4)"></div>
+          <span><strong style="color:var(--accent4)">หักพัก</strong> — &lt;4.5ชม.=ไม่หัก · 4.5=0.5 · 5–9=1 · 9.5=1.5 · 10–14=2 · 14.5=2.5 · 15–19=3 · 19.5=3.5 · 20=4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notice -->
+    <div class="notice">
+      💡 <span>ข้ามคืนได้</span> — ถ้าเวลาสิ้นสุด <u>น้อยกว่า</u>เวลาเริ่ม ระบบจะนับเป็น +24 ชั่วโมงอัตโนมัติ เช่น เริ่ม 20:00 → จบ 02:00 = 6 ชม.
+    </div>
+
+    <!-- ROWS -->
+    <div id="rows-container"></div>
+
+    <button class="add-btn" onclick="addRow()">＋ เพิ่มรายการใหม่</button>
+  </div>
+
+  <!-- ─── SUMMARY TAB ─── -->
+  <div id="tab-summary" class="tab-content">
+    <div class="month-label" id="summaryTitle">สรุปเดือน — <small>ยังไม่มีข้อมูล</small></div>
+
+    <!-- Hero Total -->
+    <div class="summary-hero">
+      <div class="summary-hero-label">รวมรายได้ OT + Night Shift ทั้งเดือน</div>
+      <div class="summary-hero-amount" id="sumGrand">฿0.00</div>
+      <div class="summary-hero-sub" id="sumGrandSub">—</div>
+    </div>
+
+    <!-- Cards -->
+    <div class="summary-cards">
+      <div class="s-card normal">
+        <div class="s-card-label">📅 วันปกติ (1.5×)</div>
+        <div class="s-card-amount" id="sNormalAmt">฿0.00</div>
+        <div class="s-card-sub" id="sNormalSub">0 ชม. OT</div>
+      </div>
+      <div class="s-card off">
+        <div class="s-card-label">🔵 วันหยุด OFF (1×)</div>
+        <div class="s-card-amount" id="sOffAmt">฿0.00</div>
+        <div class="s-card-sub" id="sOffSub">0 ชม. OT</div>
+      </div>
+      <div class="s-card holiday">
+        <div class="s-card-label">🔴 วันนักขัตฤกษ์ (1×/3×)</div>
+        <div class="s-card-amount" id="sHolidayAmt">฿0.00</div>
+        <div class="s-card-sub" id="sHolidaySub">0 ชม. OT</div>
+      </div>
+      <div class="s-card night">
+        <div class="s-card-label">🌙 Night Shift</div>
+        <div class="s-card-amount" id="sNightAmt">฿0.00</div>
+        <div class="s-card-sub" id="sNightSub">0 วัน</div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <div class="table-head">รายการทั้งหมด</div>
+      <div class="overflow-x">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>วันที่</th>
+              <th>ประเภทวัน</th>
+              <th>เข้างาน</th>
+              <th>เลิกงาน</th>
+              <th>เริ่ม OT</th>
+              <th>จบ OT</th>
+              <th>ชม.งาน</th>
+              <th>OT ดิบ</th>
+              <th>หักพัก</th>
+              <th>OT สุทธิ</th>
+              <th>Night Shift</th>
+              <th>รายได้ OT</th>
+              <th>รวม</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── GUIDE TAB ─── -->
+  <div id="tab-guide" class="tab-content">
+    <div class="howto" style="margin-bottom:20px;">
+      <h3>🚀 วิธีใช้งานทีละขั้นตอน</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>ตั้งค่าเงินเดือน</strong>กรอกฐานเงินเดือนของคุณ ระบบจะคำนวณอัตราต่อชั่วโมงให้อัตโนมัติ (เงินเดือน ÷ 30 ÷ 8)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text"><strong>เลือกเดือนและปี</strong>เพื่อให้ยอดสรุปแสดงชื่อเดือนที่ถูกต้อง</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text"><strong>กรอกวันที่</strong>และเลือกประเภทวัน: วันปกติ / วันหยุด OFF / วันหยุดนักขัตฤกษ์</div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>กรอกเวลาเข้า-เลิกงาน</strong>ตามปกติ (ใช้สำหรับคำนวณ Night Shift เท่านั้น ไม่นับเป็น OT)</div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text"><strong>กรอกเวลาเริ่ม-จบ OT</strong>ระบบคำนวณชั่วโมง OT, หักพัก และเงิน OT ให้อัตโนมัติ</div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-text"><strong>ดูสรุปรายเดือน</strong>คลิกแท็บ "📊 สรุปรายเดือน" เพื่อดูยอดรวมแยกประเภท</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📘 รายละเอียดกฎการคำนวณ</div>
+      <div class="info-grid" style="gap:16px;">
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--normal);margin-bottom:8px;">📅 วันปกติ — ×1.5</p>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.7;">ทุกชั่วโมง OT สุทธิ ได้รับค่าตอบแทน 1.5 เท่าของอัตรา/ชั่วโมง<br/>
+          สูตร: <span style="font-family:var(--mono);color:var(--accent2)">OT สุทธิ × อัตรา/ชม. × 1.5</span></p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--off);margin-bottom:8px;">🔵 วันหยุด OFF — ×1</p>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.7;">ทุกชั่วโมง OT สุทธิ ได้รับค่าตอบแทน 1 เท่าของอัตรา/ชั่วโมง<br/>
+          สูตร: <span style="font-family:var(--mono);color:var(--accent2)">OT สุทธิ × อัตรา/ชม. × 1.0</span></p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--holiday);margin-bottom:8px;">🔴 วันนักขัตฤกษ์ — ×1 / ×3</p>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.7;">
+            ชั่วโมงที่ 1–10 (รวมเวลาทำงานปกติ + OT) = <strong style="color:var(--text)">1×</strong><br/>
+            ชั่วโมงที่ 11 เป็นต้นไป = <strong style="color:var(--accent3)">3×</strong><br/>
+            ระบบคำนวณสัดส่วนให้อัตโนมัติ
+          </p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:#b48eff;margin-bottom:8px;">🌙 Night Shift — +200฿/วัน</p>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.7;">
+            พิจารณาจากเวลา<u>เข้างาน</u>และ<u>เลิกงานปกติ</u>เท่านั้น<br/>
+            • เวลา<strong>เข้างาน</strong> อยู่ระหว่าง 02:00–03:00<br/>
+            • หรือเวลา<strong>เลิกงาน</strong> ≥ 02:00<br/>
+            <em style="color:var(--text3)">ไม่นับเวลา OT</em>
+          </p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--accent4);margin-bottom:8px;">⏸️ ตารางหักเวลาพัก</p>
+          <p style="font-size:12px;color:var(--text2);line-height:1.9;font-family:var(--mono);">
+            &lt; 4.5 ชม. → ไม่หัก<br/>
+            4.5 ชม. → หัก 0.5<br/>
+            5 – 9 ชม. → หัก 1<br/>
+            9.5 ชม. → หัก 1.5<br/>
+            10 – 14 ชม. → หัก 2<br/>
+            14.5 ชม. → หัก 2.5<br/>
+            15 – 19 ชม. → หัก 3<br/>
+            19.5 ชม. → หัก 3.5<br/>
+            20 ชม. → หัก 4
+          </p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:var(--accent2);margin-bottom:8px;">💡 เคล็ดลับการใช้งาน</p>
+          <p style="font-size:12.5px;color:var(--text2);line-height:1.7;">
+            • <strong style="color:var(--text)">ข้ามคืน:</strong> กรอกเวลาสิ้นสุดน้อยกว่าเวลาเริ่ม ระบบจะ +24ชม. ให้เอง<br/>
+            • <strong style="color:var(--text)">แค่ OT ไม่มีงานปกติ:</strong> ไม่ต้องกรอกเวลาเข้า-เลิกงาน<br/>
+            • <strong style="color:var(--text)">เปลี่ยนเงินเดือน:</strong> แก้ที่ช่อง "ฐานเงินเดือน" ระบบคำนวณใหม่ทุกรายการทันที<br/>
+            • <strong style="color:var(--text)">บันทึกข้อมูล:</strong> กด Ctrl+S หรือ Bookmark หน้านี้ไว้ (ข้อมูลไม่บันทึกข้ามเซสชัน)
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ─────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────
+let rowId = 0;
+const rows = [];
+
+const MONTHS_TH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                   "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+
+// Init month/year
+(function(){
+  const now = new Date();
+  document.getElementById('selMonth').value = now.getMonth();
+  document.getElementById('selYear').value = now.getFullYear() + 543;
+  recalcAll();
+  addRow();
+})();
+
+// ─────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', ['input','summary','guide'][i]===name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='summary') buildSummary();
+}
+
+// ─────────────────────────────────────────
+//  TIME HELPERS
+// ─────────────────────────────────────────
+function timeToH(t){ if(!t)return null; const[h,m]=t.split(':').map(Number); return h+m/60; }
+
+function hoursToHM(h){
+  if(h==null||isNaN(h)||h<0) return '–';
+  const hh=Math.floor(h), mm=Math.round((h-hh)*60);
+  return `${hh}ชม. ${String(mm).padStart(2,'0')}น.`;
+}
+
+function fmt(n,dp=2){
+  if(n==null||isNaN(n)) return '–';
+  return n.toLocaleString('th-TH',{minimumFractionDigits:dp,maximumFractionDigits:dp});
+}
+
+// ─────────────────────────────────────────
+//  BREAK DEDUCTION
+// ─────────────────────────────────────────
+function getBreak(raw){
+  if(raw<4.5) return 0;
+  if(raw<5)   return 0.5;
+  if(raw<9.5) return 1;
+  if(raw<10)  return 1.5;
+  if(raw<14.5)return 2;
+  if(raw<15)  return 2.5;
+  if(raw<19.5)return 3;
+  if(raw<20)  return 3.5;
+  return 4;
+}
+
+// ─────────────────────────────────────────
+//  OT INCOME
+// ─────────────────────────────────────────
+function calcOTIncome(dayType, netOT, rate, workH, rawOT){
+  if(netOT<=0) return 0;
+  if(dayType==='normal') return netOT * rate * 1.5;
+  if(dayType==='off')    return netOT * rate * 1.0;
+  if(dayType==='holiday'){
+    const totalH = (workH||0) + rawOT;
+    if(totalH<=10) return netOT * rate * 1.0;
+    // split: before threshold 10h and after
+    const beforeRaw = Math.max(0, 10 - (workH||0));
+    const ratio = rawOT>0 ? netOT/rawOT : 1;
+    const netBefore = Math.min(netOT, beforeRaw*ratio);
+    const netAfter  = netOT - netBefore;
+    return (netBefore*1.0 + netAfter*3.0) * rate;
+  }
+  return 0;
+}
+
+// ─────────────────────────────────────────
+//  NIGHT SHIFT
+// ─────────────────────────────────────────
+function isNightShift(workIn, workOut){
+  if(!workIn||!workOut) return false;
+  const inH  = timeToH(workIn);
+  const outH = timeToH(workOut);
+  return (inH>=2 && inH<=3) || (outH>=2);
+}
+
+// ─────────────────────────────────────────
+//  CALC ROW
+// ─────────────────────────────────────────
+function calcRow(r){
+  const rate = getRatePerHour();
+  let workH=null, rawOT=0;
+
+  if(r.workIn&&r.workOut){
+    let wi=timeToH(r.workIn), wo=timeToH(r.workOut);
+    if(wo<wi) wo+=24;
+    workH=Math.max(0,wo-wi);
+  }
+  if(r.otIn&&r.otOut){
+    let oi=timeToH(r.otIn), oo=timeToH(r.otOut);
+    if(oo<oi) oo+=24;
+    rawOT=Math.max(0,oo-oi);
+  }
+
+  const brk     = getBreak(rawOT);
+  const netOT   = Math.max(0, rawOT-brk);
+  const otInc   = calcOTIncome(r.dayType, netOT, rate, workH, rawOT);
+  const night   = isNightShift(r.workIn, r.workOut);
+  const nightPay= night ? 200 : 0;
+  const total   = otInc + nightPay;
+
+  return {workH,rawOT,brk,netOT,otInc,night,nightPay,total};
+}
+
+function getRatePerHour(){
+  const sal = parseFloat(document.getElementById('salary').value)||0;
+  return sal/30/8;
+}
+
+// ─────────────────────────────────────────
+//  DOM — ADD ROW
+// ─────────────────────────────────────────
+function addRow(){
+  const id = ++rowId;
+  rows.push({id, date:'', dayType:'normal', workIn:'', workOut:'', otIn:'', otOut:''});
+  renderRow(id);
+  recalcAll();
+}
+
+function removeRow(id){
+  const idx = rows.findIndex(r=>r.id===id);
+  if(idx>-1) rows.splice(idx,1);
+  document.getElementById('row-'+id)?.remove();
+  recalcAll();
+}
+
+function onInput(id, field, val){
+  const r = rows.find(r=>r.id===id);
+  if(r){ r[field]=val; recalcRow(id); }
+}
+
+// ─────────────────────────────────────────
+//  RENDER ROW
+// ─────────────────────────────────────────
+function renderRow(id){
+  const r = rows.find(r=>r.id===id);
+  const idx = rows.findIndex(r=>r.id===id);
+  const container = document.getElementById('rows-container');
+
+  const div = document.createElement('div');
+  div.id = 'row-'+id;
+  div.className = 'row-card type-'+r.dayType;
+  div.innerHTML = rowHTML(id, idx+1, r);
+  container.appendChild(div);
+}
+
+function rowHTML(id, num, r){
+  return `
+  <div class="row-header">
+    <span class="row-num">รายการที่ ${num}</span>
+    <span class="row-date-display" id="rdateDisp-${id}">${r.date||'—'}</span>
+    <button class="delete-btn" onclick="removeRow(${id})">✕ ลบ</button>
+  </div>
+  <div class="row-inputs">
+    <div class="field">
+      <label>📅 วันที่</label>
+      <input type="date" value="${r.date}" oninput="onInput(${id},'date',this.value);document.getElementById('rdateDisp-${id}').textContent=this.value||'—'"/>
+    </div>
+    <div class="field">
+      <label>🗓 ประเภทวัน</label>
+      <select onchange="onInput(${id},'dayType',this.value);updateRowType(${id},this.value)">
+        <option value="normal" ${r.dayType==='normal'?'selected':''}>📅 วันปกติ</option>
+        <option value="off" ${r.dayType==='off'?'selected':''}>🔵 วันหยุด OFF</option>
+        <option value="holiday" ${r.dayType==='holiday'?'selected':''}>🔴 วันนักขัตฤกษ์</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>🟢 เข้างาน (ปกติ)</label>
+      <input type="time" value="${r.workIn}" oninput="onInput(${id},'workIn',this.value)"/>
+    </div>
+    <div class="field">
+      <label>🔴 เลิกงาน (ปกติ)</label>
+      <input type="time" value="${r.workOut}" oninput="onInput(${id},'workOut',this.value)"/>
+    </div>
+    <div class="field">
+      <label>🟡 เริ่ม OT</label>
+      <input type="time" value="${r.otIn}" oninput="onInput(${id},'otIn',this.value)"/>
+    </div>
+    <div class="field">
+      <label>🏁 จบ OT</label>
+      <input type="time" value="${r.otOut}" oninput="onInput(${id},'otOut',this.value)"/>
+    </div>
+  </div>
+  <div class="row-results" id="rresults-${id}">
+    <div class="result-cell"><div class="result-label">ประเภทวัน</div><div class="result-value" id="rtype-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">ชม. งานปกติ</div><div class="result-value" id="rwork-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">OT ดิบ</div><div class="result-value accent" id="rrawot-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">หักพัก</div><div class="result-value orange" id="rbrk-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">OT สุทธิ</div><div class="result-value accent" id="rnet-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">Night Shift</div><div class="result-value purple" id="rnight-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">รายได้ OT</div><div class="result-value green" id="rotinc-${id}">—</div></div>
+    <div class="result-cell"><div class="result-label">รวมวันนี้</div><div class="result-value big" id="rtotal-${id}">—</div></div>
+  </div>
+  `;
+}
+
+function updateRowType(id, type){
+  const el = document.getElementById('row-'+id);
+  if(el){ el.className='row-card type-'+type; }
+}
+
+// ─────────────────────────────────────────
+//  RECALC
+// ─────────────────────────────────────────
+function recalcRow(id){
+  const r = rows.find(r=>r.id===id);
+  if(!r) return;
+  const c = calcRow(r);
+
+  const typeLabels = {normal:'<span class="type-badge normal">วันปกติ</span>',off:'<span class="type-badge off">วันหยุด OFF</span>',holiday:'<span class="type-badge holiday">นักขัตฤกษ์</span>'};
+  setText('rtype-'+id, typeLabels[r.dayType]||'—', true);
+  setText('rwork-'+id, c.workH!=null ? hoursToHM(c.workH) : '–');
+  setText('rrawot-'+id, hoursToHM(c.rawOT));
+  setText('rbrk-'+id, c.brk>0 ? `-${hoursToHM(c.brk)}` : '–');
+  setText('rnet-'+id, hoursToHM(c.netOT));
+  setText('rnight-'+id, c.night ? '🌙 +200฿' : '–');
+  setText('rotinc-'+id, `฿${fmt(c.otInc)}`);
+  setText('rtotal-'+id, `฿${fmt(c.total)}`);
+
+  // night shift — add class
+  const card = document.getElementById('row-'+id);
+  if(card) card.classList.toggle('has-night', c.night);
+}
+
+function setText(id, val, html=false){
+  const el = document.getElementById(id);
+  if(el){ if(html) el.innerHTML=val; else el.textContent=val; }
+}
+
+function recalcAll(){
+  // update rate display
+  const rate = getRatePerHour();
+  document.getElementById('rateDisplay').textContent = `${fmt(rate)} ฿/ชม.`;
+  rows.forEach(r => recalcRow(r.id));
+  // renum
+  rows.forEach((r,i)=>{
+    const el = document.querySelector(`#row-${r.id} .row-num`);
+    if(el) el.textContent = `รายการที่ ${i+1}`;
+  });
+}
+
+// ─────────────────────────────────────────
+//  SUMMARY
+// ─────────────────────────────────────────
+function buildSummary(){
+  const month = parseInt(document.getElementById('selMonth').value);
+  const year  = parseInt(document.getElementById('selYear').value);
+  document.getElementById('summaryTitle').innerHTML =
+    `สรุปเดือน <strong>${MONTHS_TH[month]}</strong> <small>ปี พ.ศ. ${year}</small>`;
+
+  let totals = {normal:{h:0,inc:0}, off:{h:0,inc:0}, holiday:{h:0,inc:0}};
+  let nightDays=0, nightTotal=0, otTotal=0, grandTotal=0;
+  let hasData=false;
+
+  const tbody = document.getElementById('summaryTableBody');
+  tbody.innerHTML='';
+
+  rows.forEach((r,i)=>{
+    const c = calcRow(r);
+    if(r.dayType && totals[r.dayType]){
+      totals[r.dayType].h   += c.netOT||0;
+      totals[r.dayType].inc += c.otInc||0;
+    }
+    if(c.night){ nightDays++; nightTotal+=200; }
+    otTotal    += c.otInc||0;
+    grandTotal += c.total||0;
+    if(c.rawOT>0 || c.total>0) hasData=true;
+
+    const typeLabel = {normal:'วันปกติ',off:'วันหยุด OFF',holiday:'นักขัตฤกษ์'}[r.dayType]||'–';
+    const typeClass = r.dayType||'normal';
+    tbody.innerHTML += `
+      <tr>
+        <td>${i+1}</td>
+        <td class="mono">${r.date||'–'}</td>
+        <td><span class="type-badge ${typeClass}">${typeLabel}</span></td>
+        <td>${r.workIn||'–'}</td>
+        <td>${r.workOut||'–'}</td>
+        <td>${r.otIn||'–'}</td>
+        <td>${r.otOut||'–'}</td>
+        <td class="mono">${c.workH!=null?hoursToHM(c.workH):'–'}</td>
+        <td class="mono">${hoursToHM(c.rawOT)}</td>
+        <td class="orange">${c.brk>0?`-${hoursToHM(c.brk)}`:'–'}</td>
+        <td class="mono hl">${hoursToHM(c.netOT)}</td>
+        <td>${c.night?'<span class="night-pill">🌙 200฿</span>':'–'}</td>
+        <td class="green">฿${fmt(c.otInc)}</td>
+        <td class="green" style="font-size:13px;">฿${fmt(c.total)}</td>
+      </tr>`;
+  });
+
+  document.getElementById('sumGrand').textContent = `฿${fmt(grandTotal)}`;
+  document.getElementById('sumGrandSub').textContent =
+    `OT ฿${fmt(otTotal)} + Night Shift ฿${fmt(nightTotal)}`;
+
+  document.getElementById('sNormalAmt').textContent  = `฿${fmt(totals.normal.inc)}`;
+  document.getElementById('sNormalSub').textContent  = `${hoursToHM(totals.normal.h)} OT สุทธิ`;
+  document.getElementById('sOffAmt').textContent     = `฿${fmt(totals.off.inc)}`;
+  document.getElementById('sOffSub').textContent     = `${hoursToHM(totals.off.h)} OT สุทธิ`;
+  document.getElementById('sHolidayAmt').textContent = `฿${fmt(totals.holiday.inc)}`;
+  document.getElementById('sHolidaySub').textContent = `${hoursToHM(totals.holiday.h)} OT สุทธิ`;
+  document.getElementById('sNightAmt').textContent   = `฿${fmt(nightTotal)}`;
+  document.getElementById('sNightSub').textContent   = `${nightDays} วัน × 200 ฿`;
+}
+</script>
+
+<script>
+// ── PWA Service Worker Registration ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW registered'))
+      .catch(e => console.log('SW error:', e));
+  });
+}
+
+// ── Install Banner (iOS hint) ──
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone;
+  if (isIOS && !isStandalone) {
+    const bar = document.createElement('div');
+    bar.style.cssText = `
+      position:fixed; bottom:0; left:0; right:0; z-index:9999;
+      background:#1a1d27; border-top:1px solid #6c63ff44;
+      padding:14px 20px 28px; display:flex; gap:14px; align-items:flex-start;
+      font-family:'Leelawadee UI','Thonburi','Tahoma',sans-serif;
+    `;
+    bar.innerHTML = \`
+      <div style="font-size:28px;line-height:1">⏱</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:#e8eaf6;margin-bottom:4px">
+          เพิ่มลง Home Screen เพื่อใช้แบบออฟไลน์
+        </div>
+        <div style="font-size:12px;color:#9399b8;line-height:1.5">
+          กด <strong style="color:#6c63ff">Share</strong> (ไอคอน □↑) แล้วเลือก
+          <strong style="color:#6c63ff">"Add to Home Screen"</strong>
+        </div>
+      </div>
+      <button onclick="this.parentElement.remove()" style="
+        background:none;border:none;color:#5d6385;font-size:18px;
+        cursor:pointer;padding:0;line-height:1;margin-top:2px
+      ">✕</button>
+    \`;
+    document.body.appendChild(bar);
+  }
+});
+</script>
+</body>
+</html>
