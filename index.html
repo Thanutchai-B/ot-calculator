@@ -837,7 +837,10 @@ function isNightShift(workIn, workOut){
   if(!workIn||!workOut) return false;
   const inH  = timeToH(workIn);
   const outH = timeToH(workOut);
-  return (inH>=2 && inH<=3) || (outH>=2);
+  // เข้างาน 02:00-03:00 หรือ เลิกงาน 02:00-06:00
+  const inNight  = (inH >= 2 && inH <= 3);
+  const outNight = (outH >= 2 && outH <= 6);
+  return inNight || outNight;
 }
 
 // ─────────────────────────────────────────
