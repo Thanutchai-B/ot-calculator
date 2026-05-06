@@ -758,13 +758,54 @@ const rows = [];
 const MONTHS_TH = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
                    "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
 
+// ─────────────────────────────────────────
+//  LOCALSTORAGE — บันทึก/โหลดข้อมูล
+// ─────────────────────────────────────────
+const STORAGE_KEY = 'ot_calc_data';
+
+function saveData(){
+  try {
+    const data = {
+      salary: document.getElementById('salary').value,
+      month:  document.getElementById('selMonth').value,
+      year:   document.getElementById('selYear').value,
+      rows:   rows
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e){ console.warn('Save failed', e); }
+}
+
+function loadData(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  } catch(e){ return null; }
+}
+
 // Init month/year
 (function(){
-  const now = new Date();
-  document.getElementById('selMonth').value = now.getMonth();
-  document.getElementById('selYear').value = now.getFullYear() + 543;
-  recalcAll();
-  addRow();
+  const saved = loadData();
+  if(saved && saved.rows && saved.rows.length > 0){
+    // โหลดข้อมูลที่บันทึกไว้
+    document.getElementById('salary').value   = saved.salary || 19500;
+    document.getElementById('selMonth').value = saved.month  ?? new Date().getMonth();
+    document.getElementById('selYear').value  = saved.year   || (new Date().getFullYear() + 543);
+    // restore rows
+    saved.rows.forEach(r => {
+      rowId = Math.max(rowId, r.id);
+      rows.push(r);
+      renderRow(r.id);
+    });
+    recalcAll();
+  } else {
+    // ไม่มีข้อมูล — ตั้งค่าเริ่มต้น
+    const now = new Date();
+    document.getElementById('selMonth').value = now.getMonth();
+    document.getElementById('selYear').value  = now.getFullYear() + 543;
+    recalcAll();
+    addRow();
+  }
 })();
 
 // ─────────────────────────────────────────
@@ -884,6 +925,7 @@ function addRow(){
   rows.push({id, date:'', dayType:'normal', workIn:'', workOut:'', otIn:'', otOut:''});
   renderRow(id);
   recalcAll();
+  saveData();
 }
 
 function removeRow(id){
@@ -891,11 +933,12 @@ function removeRow(id){
   if(idx>-1) rows.splice(idx,1);
   document.getElementById('row-'+id)?.remove();
   recalcAll();
+  saveData();
 }
 
 function onInput(id, field, val){
   const r = rows.find(r=>r.id===id);
-  if(r){ r[field]=val; recalcRow(id); }
+  if(r){ r[field]=val; recalcRow(id); saveData(); }
 }
 
 // ─────────────────────────────────────────
@@ -1006,6 +1049,7 @@ function recalcAll(){
     const el = document.querySelector(`#row-${r.id} .row-num`);
     if(el) el.textContent = `รายการที่ ${i+1}`;
   });
+  saveData();
 }
 
 // ─────────────────────────────────────────
