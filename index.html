@@ -837,51 +837,82 @@ function fmt(n,dp=2){
 }
 
 // ─────────────────────────────────────────
-//  BREAK DEDUCTION
+//  BREAK DEDUCTION (คิดจากชั่วโมงรวมทั้งหมด)
 // ─────────────────────────────────────────
-function getBreak(raw){
-  if(raw<4.5) return 0;
-  if(raw<5)   return 0.5;
-  if(raw<9.5) return 1;
-  if(raw<10)  return 1.5;
-  if(raw<14.5)return 2;
-  if(raw<15)  return 2.5;
-  if(raw<19.5)return 3;
-  if(raw<20)  return 3.5;
+function getBreak(totalRaw){
+  if(totalRaw <  4.5) return 0;
+  if(totalRaw <  5)   return 0.5;
+  if(totalRaw <  9.5) return 1;
+  if(totalRaw <  10)  return 1.5;
+  if(totalRaw <  14.5)return 2;
+  if(totalRaw <  15)  return 2.5;
+  if(totalRaw <  19.5)return 3;
+  if(totalRaw <  20)  return 3.5;
   return 4;
+}
+
+// ─────────────────────────────────────────
+//  NIGHT SHIFT
+//  - คิดเฉพาะวันปกติ และ วันนักขัตฤกษ์ เท่านั้น (ไม่คิดวัน OFF)
+//  - พิจารณาจากเวลาเข้า-เลิกงานปกติเท่านั้น ไม่นับเวลา OT
+// ─────────────────────────────────────────
+function isNightShift(workIn, workOut, dayType){
+  if(dayType === 'off') return false;          // วัน OFF ไม่ได้ night shift
+  if(!workIn || !workOut) return false;
+  const inH  = timeToH(workIn);
+  const outH = timeToH(workOut);
+  const inNight  = (inH  >= 2 && inH  <= 3);  // เข้างาน 02:00–03:00
+  const outNight = (outH >= 2 && outH <= 6);  // เลิกงาน 02:00–06:00
+  return inNight || outNight;
 }
 
 // ─────────────────────────────────────────
 //  OT INCOME
 // ─────────────────────────────────────────
-function calcOTIncome(dayType, netOT, rate, workH, rawOT){
-  if(netOT<=0) return 0;
-  if(dayType==='normal') return netOT * rate * 1.5;
-  if(dayType==='off')    return netOT * rate * 1.0;
-  if(dayType==='holiday'){
-    const totalH = (workH||0) + rawOT;
-    if(totalH<=10) return netOT * rate * 1.0;
-    // split: before threshold 10h and after
-    const beforeRaw = Math.max(0, 10 - (workH||0));
-    const ratio = rawOT>0 ? netOT/rawOT : 1;
-    const netBefore = Math.min(netOT, beforeRaw*ratio);
-    const netAfter  = netOT - netBefore;
-    return (netBefore*1.0 + netAfter*3.0) * rate;
+// วันปกติ:
+//   - ชั่วโมง OT × 1.5× (หักพักจากชั่วโมง OT)
+//
+// วันออฟ:
+//   - เวลาทำงานทั้งหมด (work + OT รวมกัน) × 1× หักพักจากยอดรวม
+//
+// วันนักขัตฤกษ์:
+//   - รวม work + OT เป็น totalRaw, หักพักจาก totalRaw
+//   - 10 ชม.แรก (สุทธิ) × 1×, ส่วนเกิน × 3×
+// ─────────────────────────────────────────
+function calcOTIncome(dayType, rate, workH, rawOT){
+  if(dayType === 'normal'){
+    // วันปกติ: คิดแค่ชั่วโมง OT, หักพักจาก OT
+    if(rawOT <= 0) return 0;
+    const brk   = getBreak(rawOT);
+    const netOT = Math.max(0, rawOT - brk);
+    return netOT * rate * 1.5;
   }
-  return 0;
-}
 
-// ─────────────────────────────────────────
-//  NIGHT SHIFT
-// ─────────────────────────────────────────
-function isNightShift(workIn, workOut){
-  if(!workIn||!workOut) return false;
-  const inH  = timeToH(workIn);
-  const outH = timeToH(workOut);
-  // เข้างาน 02:00-03:00 หรือ เลิกงาน 02:00-06:00
-  const inNight  = (inH >= 2 && inH <= 3);
-  const outNight = (outH >= 2 && outH <= 6);
-  return inNight || outNight;
+  if(dayType === 'off'){
+    // วันออฟ: เวลาทำงานทั้งหมด (work + OT) × 1×, หักพักจากยอดรวม
+    const totalRaw = (workH || 0) + rawOT;
+    if(totalRaw <= 0) return 0;
+    const brk    = getBreak(totalRaw);
+    const netAll = Math.max(0, totalRaw - brk);
+    return netAll * rate * 1.0;
+  }
+
+  if(dayType === 'holiday'){
+    // วันนักขัตฤกษ์: รวม work + OT แล้วหักพักจากยอดรวม
+    const totalRaw = (workH || 0) + rawOT;
+    if(totalRaw <= 0) return 0;
+    const brk    = getBreak(totalRaw);
+    const netAll = Math.max(0, totalRaw - brk);
+    if(netAll <= 10){
+      // ทั้งหมดอยู่ใน 10 ชม. → 1×
+      return netAll * rate * 1.0;
+    } else {
+      // 10 ชม.แรก × 1×, ส่วนเกิน × 3×
+      return (10 * 1.0 + (netAll - 10) * 3.0) * rate;
+    }
+  }
+
+  return 0;
 }
 
 // ─────────────────────────────────────────
@@ -889,27 +920,51 @@ function isNightShift(workIn, workOut){
 // ─────────────────────────────────────────
 function calcRow(r){
   const rate = getRatePerHour();
-  let workH=null, rawOT=0;
+  let workH = null, rawOT = 0;
 
-  if(r.workIn&&r.workOut){
-    let wi=timeToH(r.workIn), wo=timeToH(r.workOut);
-    if(wo<wi) wo+=24;
-    workH=Math.max(0,wo-wi);
+  if(r.workIn && r.workOut){
+    let wi = timeToH(r.workIn), wo = timeToH(r.workOut);
+    if(wo < wi) wo += 24;
+    workH = Math.max(0, wo - wi);
   }
-  if(r.otIn&&r.otOut){
-    let oi=timeToH(r.otIn), oo=timeToH(r.otOut);
-    if(oo<oi) oo+=24;
-    rawOT=Math.max(0,oo-oi);
+  if(r.otIn && r.otOut){
+    let oi = timeToH(r.otIn), oo = timeToH(r.otOut);
+    if(oo < oi) oo += 24;
+    rawOT = Math.max(0, oo - oi);
   }
 
-  const brk     = getBreak(rawOT);
-  const netOT   = Math.max(0, rawOT-brk);
-  const otInc   = calcOTIncome(r.dayType, netOT, rate, workH, rawOT);
-  const night   = isNightShift(r.workIn, r.workOut);
-  const nightPay= night ? 200 : 0;
-  const total   = otInc + nightPay;
+  // คำนวณชั่วโมง OT / total สำหรับแสดงใน UI
+  let displayRawOT = rawOT;      // แสดง OT ดิบ (วันปกติ=OT, off/holiday=work+OT)
+  let displayBrk   = 0;
+  let displayNetOT = 0;
 
-  return {workH,rawOT,brk,netOT,otInc,night,nightPay,total};
+  if(r.dayType === 'normal'){
+    displayBrk   = getBreak(rawOT);
+    displayNetOT = Math.max(0, rawOT - displayBrk);
+  } else {
+    // off / holiday: แสดง totalRaw และหักพักจากยอดรวม
+    const totalRaw = (workH || 0) + rawOT;
+    displayRawOT   = totalRaw;
+    displayBrk     = getBreak(totalRaw);
+    displayNetOT   = Math.max(0, totalRaw - displayBrk);
+  }
+
+  const otInc    = calcOTIncome(r.dayType, rate, workH, rawOT);
+  const night    = isNightShift(r.workIn, r.workOut, r.dayType);
+  const nightPay = night ? 200 : 0;
+  const total    = otInc + nightPay;
+
+  return {
+    workH,
+    rawOT,
+    displayRawOT,
+    displayBrk,
+    displayNetOT,
+    otInc,
+    night,
+    nightPay,
+    total
+  };
 }
 
 function getRatePerHour(){
@@ -1019,17 +1074,29 @@ function recalcRow(id){
   if(!r) return;
   const c = calcRow(r);
 
-  const typeLabels = {normal:'<span class="type-badge normal">วันปกติ</span>',off:'<span class="type-badge off">วันหยุด OFF</span>',holiday:'<span class="type-badge holiday">นักขัตฤกษ์</span>'};
-  setText('rtype-'+id, typeLabels[r.dayType]||'—', true);
-  setText('rwork-'+id, c.workH!=null ? hoursToHM(c.workH) : '–');
-  setText('rrawot-'+id, hoursToHM(c.rawOT));
-  setText('rbrk-'+id, c.brk>0 ? `-${hoursToHM(c.brk)}` : '–');
-  setText('rnet-'+id, hoursToHM(c.netOT));
-  setText('rnight-'+id, c.night ? '🌙 +200฿' : '–');
-  setText('rotinc-'+id, `฿${fmt(c.otInc)}`);
-  setText('rtotal-'+id, `฿${fmt(c.total)}`);
+  const typeLabels = {
+    normal: '<span class="type-badge normal">วันปกติ</span>',
+    off:    '<span class="type-badge off">วันหยุด OFF</span>',
+    holiday:'<span class="type-badge holiday">นักขัตฤกษ์</span>'
+  };
 
-  // night shift — add class
+  // label คอลัมน์ตามประเภทวัน
+  const rawLabel = r.dayType === 'normal' ? 'OT ดิบ' : 'รวมทั้งหมด';
+
+  setText('rtype-'+id,   typeLabels[r.dayType]||'—', true);
+  setText('rwork-'+id,   c.workH != null ? hoursToHM(c.workH) : '–');
+  setText('rrawot-'+id,  hoursToHM(c.displayRawOT));
+  setText('rbrk-'+id,    c.displayBrk > 0 ? `-${hoursToHM(c.displayBrk)}` : '–');
+  setText('rnet-'+id,    hoursToHM(c.displayNetOT));
+  setText('rnight-'+id,  c.night ? '🌙 +200฿' : '–');
+  setText('rotinc-'+id,  `฿${fmt(c.otInc)}`);
+  setText('rtotal-'+id,  `฿${fmt(c.total)}`);
+
+  // อัปเดต label หัวคอลัมน์ "OT ดิบ"
+  const rawLabelEl = document.querySelector(`#row-${id} .label-rawot`);
+  if(rawLabelEl) rawLabelEl.textContent = rawLabel;
+
+  // night shift class
   const card = document.getElementById('row-'+id);
   if(card) card.classList.toggle('has-night', c.night);
 }
@@ -1071,16 +1138,17 @@ function buildSummary(){
   rows.forEach((r,i)=>{
     const c = calcRow(r);
     if(r.dayType && totals[r.dayType]){
-      totals[r.dayType].h   += c.netOT||0;
-      totals[r.dayType].inc += c.otInc||0;
+      totals[r.dayType].h   += c.displayNetOT || 0;
+      totals[r.dayType].inc += c.otInc || 0;
     }
-    if(c.night){ nightDays++; nightTotal+=200; }
-    otTotal    += c.otInc||0;
-    grandTotal += c.total||0;
-    if(c.rawOT>0 || c.total>0) hasData=true;
+    if(c.night){ nightDays++; nightTotal += 200; }
+    otTotal    += c.otInc || 0;
+    grandTotal += c.total || 0;
+    if(c.displayRawOT > 0 || c.total > 0) hasData = true;
 
-    const typeLabel = {normal:'วันปกติ',off:'วันหยุด OFF',holiday:'นักขัตฤกษ์'}[r.dayType]||'–';
-    const typeClass = r.dayType||'normal';
+    const typeLabel = {normal:'วันปกติ', off:'วันหยุด OFF', holiday:'นักขัตฤกษ์'}[r.dayType] || '–';
+    const typeClass = r.dayType || 'normal';
+    const rawLabel  = r.dayType === 'normal' ? 'OT ดิบ' : 'รวมทั้งหมด';
     tbody.innerHTML += `
       <tr>
         <td>${i+1}</td>
@@ -1090,11 +1158,11 @@ function buildSummary(){
         <td>${r.workOut||'–'}</td>
         <td>${r.otIn||'–'}</td>
         <td>${r.otOut||'–'}</td>
-        <td class="mono">${c.workH!=null?hoursToHM(c.workH):'–'}</td>
-        <td class="mono">${hoursToHM(c.rawOT)}</td>
-        <td class="orange">${c.brk>0?`-${hoursToHM(c.brk)}`:'–'}</td>
-        <td class="mono hl">${hoursToHM(c.netOT)}</td>
-        <td>${c.night?'<span class="night-pill">🌙 200฿</span>':'–'}</td>
+        <td class="mono">${c.workH!=null ? hoursToHM(c.workH) : '–'}</td>
+        <td class="mono" title="${rawLabel}">${hoursToHM(c.displayRawOT)}</td>
+        <td class="orange">${c.displayBrk>0 ? '-'+hoursToHM(c.displayBrk) : '–'}</td>
+        <td class="mono hl">${hoursToHM(c.displayNetOT)}</td>
+        <td>${c.night ? '<span class="night-pill">🌙 200฿</span>' : '–'}</td>
         <td class="green">฿${fmt(c.otInc)}</td>
         <td class="green" style="font-size:13px;">฿${fmt(c.total)}</td>
       </tr>`;
