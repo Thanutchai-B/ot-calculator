@@ -349,7 +349,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
     </div>
   </div>
 
-  <div class="notice">💡 <span>ข้ามคืนได้</span> — เวลาสิ้นสุดน้อยกว่าเวลาเริ่ม ระบบนับ +24ชม. อัตโนมัติ | กด <span>▼ย่อ/ขยาย</span> รายการได้ | กด <span>💾 บันทึก</span> เพื่อ confirm แต่ละรายการ</div>
+  <div class="notice">💡 <span>แสดงเฉพาะเดือนที่เลือก</span> — เปลี่ยนเดือน/ปีด้านบนเพื่อดูรายการของเดือนนั้น | <span>ข้ามคืน</span>: เวลาสิ้นสุดน้อยกว่าเวลาเริ่ม ระบบนับ +24ชม. อัตโนมัติ | กด <span>💾 บันทึก</span> เพื่อ confirm รายการ</div>
 
   <div id="rows-container"></div>
   <button class="add-btn" onclick="addRow()">＋ เพิ่มรายการใหม่</button>
@@ -954,14 +954,58 @@ function recalcRow(id){
   document.getElementById('row-'+id)?.classList.toggle('has-night',c.night);
 }
 
+function getActiveMonthYear(){
+  const m = parseInt(document.getElementById('selMonth').value);
+  const y = parseInt(document.getElementById('selYear').value);
+  return {m, y};
+}
+
+function rowMatchesMonth(r, m, y){
+  if(!r.date) return true; // ยังไม่ได้กรอกวันที่ → แสดงไว้ก่อน
+  const [ry, rm] = r.date.split('-').map(Number);
+  return (ry + 543) === y && (rm - 1) === m;
+}
+
 function recalcAll(){
-  const rate=getRatePerHour();
-  document.getElementById('rateDisplay').textContent=`${fmt(rate)} ฿/ชม.`;
-  rows.forEach(r=>recalcRow(r.id));
-  rows.forEach((r,i)=>{
-    const el=document.querySelector(`#row-${r.id} .row-num`);
-    if(el)el.textContent=`#${i+1}`;
+  const rate = getRatePerHour();
+  document.getElementById('rateDisplay').textContent = `${fmt(rate)} ฿/ชม.`;
+
+  const {m, y} = getActiveMonthYear();
+  let visibleCount = 0;
+  let visibleNum = 0;
+
+  rows.forEach(r => {
+    const el = document.getElementById('row-'+r.id);
+    if(!el) return;
+    const visible = rowMatchesMonth(r, m, y);
+    el.style.display = visible ? '' : 'none';
+    if(visible){
+      visibleNum++;
+      visibleCount++;
+      recalcRow(r.id);
+      // อัปเดตเลขรายการเฉพาะที่แสดง
+      const numEl = el.querySelector('.row-num');
+      if(numEl) numEl.textContent = `#${visibleNum}`;
+    }
   });
+
+  // แสดง empty state ถ้าไม่มีรายการในเดือนนี้
+  let emptyEl = document.getElementById('empty-month-notice');
+  if(visibleCount === 0){
+    if(!emptyEl){
+      emptyEl = document.createElement('div');
+      emptyEl.id = 'empty-month-notice';
+      emptyEl.style.cssText = 'text-align:center;padding:40px 20px;color:var(--text3);font-size:13px;';
+      emptyEl.innerHTML = `<div style="font-size:32px;margin-bottom:12px;">📭</div>
+        <div style="font-weight:600;margin-bottom:4px;">ไม่มีรายการในเดือนนี้</div>
+        <div style="font-size:12px;">กด "+ เพิ่มรายการใหม่" เพื่อเริ่มบันทึก</div>`;
+      document.getElementById('rows-container').appendChild(emptyEl);
+    }
+    emptyEl.style.display = '';
+  } else if(emptyEl){
+    emptyEl.style.display = 'none';
+  }
+
   saveData();
 }
 
