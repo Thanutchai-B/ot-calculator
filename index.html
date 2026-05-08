@@ -229,6 +229,13 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
 
 /* PWA BANNER */
 .pwa-bar{position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1d27;border-top:1px solid #6c63ff44;padding:12px 18px 24px;display:flex;gap:12px;align-items:flex-start;}
+.update-bar{position:fixed;bottom:0;left:0;right:0;z-index:10000;background:linear-gradient(135deg,#1e2638,#1a1d27);border-top:2px solid var(--accent2);padding:14px 18px 28px;display:none;gap:12px;align-items:center;box-shadow:0 -4px 24px #00000066;}
+.update-bar.show{display:flex;}
+.update-bar-text{flex:1;font-size:13px;}
+.update-bar-text strong{color:var(--accent2);display:block;margin-bottom:2px;}
+.update-bar-text span{color:var(--text2);font-size:11px;}
+.update-now-btn{background:var(--accent2);border:none;border-radius:9px;color:#0f1117;padding:9px 18px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.update-later-btn{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;flex-shrink:0;}
 
 /* ── SALARY PAGE ── */
 .salary-hero{background:linear-gradient(135deg,#1a1d27,#1e2130);border:1px solid #6c63ff33;border-radius:18px;padding:24px;margin-bottom:16px;text-align:center;position:relative;overflow:hidden;}
@@ -601,6 +608,17 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <button class="btn-ghost" onclick="closeCalModal()">ปิด</button>
     </div>
   </div>
+</div>
+
+<!-- UPDATE BANNER -->
+<div class="update-bar" id="updateBar">
+  <div style="font-size:28px;flex-shrink:0;">🔄</div>
+  <div class="update-bar-text">
+    <strong>มีอัปเดตใหม่พร้อมใช้งาน!</strong>
+    <span>กด "อัปเดตเดี๋ยวนี้" แล้วแอปจะโหลดใหม่เพื่อรับเวอร์ชันล่าสุด</span>
+  </div>
+  <button class="update-now-btn" onclick="doUpdate()">อัปเดตเดี๋ยวนี้</button>
+  <button class="update-later-btn" onclick="document.getElementById('updateBar').classList.remove('show')" title="ปิด">✕</button>
 </div>
 
 <script>
@@ -1436,9 +1454,46 @@ function buildSalary(){
 }
 
 // init salary data on load
+let swRegistration = null;
+
+function doUpdate(){
+  if(swRegistration && swRegistration.waiting){
+    swRegistration.waiting.postMessage({type:'SKIP_WAITING'});
+  }
+}
+
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      swRegistration = reg;
+
+      // ถ้ามี SW ใหม่รอ activate อยู่แล้ว
+      if(reg.waiting){
+        document.getElementById('updateBar').classList.add('show');
+      }
+
+      // ตรวจจับเมื่อมี SW ใหม่ถูก install
+      reg.addEventListener('updatefound', ()=>{
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', ()=>{
+          if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+            // มี SW ใหม่พร้อม → แสดง banner
+            document.getElementById('updateBar').classList.add('show');
+          }
+        });
+      });
+
+      // เมื่อ SW ใหม่ activate → reload หน้า
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if(!refreshing){
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+
+    }catch(e){ console.log('SW error:', e); }
   });
 }
 window.addEventListener('load',()=>{
