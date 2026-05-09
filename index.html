@@ -704,7 +704,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='summary')  buildSummary();
   if(name==='calendar') buildCalendar();
-  if(name==='salary')   buildSalary();
+  if(name==='salary')   { applyPvdToDOM(); buildSalary(); }
 }
 
 // ════════════════════════════════════════════
@@ -1347,17 +1347,13 @@ const SAL_KEY = 'ot_salary_data';
 let salType = 'month';
 let otherDeducts = []; // [{id, label, amount}]
 let otherIdCounter = 0;
+let savedPvdPct = 5; // เก็บค่าจริงใน JS ไม่พึ่ง DOM
 
 function loadSalaryData(){
   try{
     const d = JSON.parse(localStorage.getItem(SAL_KEY)||'{}');
-    if(d.pvdPct){
-      document.getElementById('pvdPct').value = d.pvdPct;
-      // โหลดค่าแล้ว → แสดงในสถานะ "บันทึกแล้ว" (disabled + ปุ่มแก้ไข)
-      document.getElementById('pvdPct').disabled = true;
-      const btn = document.getElementById('pvdBtn');
-      if(btn){ btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
-    }
+    // เก็บลง JS variable เสมอ — ไม่พึ่ง DOM ที่อาจซ่อนอยู่
+    if(d.pvdPct != null) savedPvdPct = parseFloat(d.pvdPct);
     if(d.note)     document.getElementById('salNote').value = d.note;
     if(d.salMonth) document.getElementById('salMonth').value = d.salMonth;
     if(d.salYear)  document.getElementById('salYear').value  = d.salYear;
@@ -1368,10 +1364,18 @@ function loadSalaryData(){
   }catch(e){}
 }
 
+// apply ค่าจาก JS variable เข้า DOM (เรียกตอนเปิด tab salary)
+function applyPvdToDOM(){
+  const input = document.getElementById('pvdPct');
+  const btn   = document.getElementById('pvdBtn');
+  if(input){ input.value = savedPvdPct; input.disabled = true; }
+  if(btn){ btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
+}
+
 function saveSalaryData(){
   try{
     localStorage.setItem(SAL_KEY, JSON.stringify({
-      pvdPct:   document.getElementById('pvdPct').value,
+      pvdPct:   savedPvdPct,
       note:     document.getElementById('salNote').value,
       salMonth: document.getElementById('salMonth').value,
       salYear:  document.getElementById('salYear').value,
@@ -1433,16 +1437,18 @@ function renderOtherDeducts(){
 function togglePvd(){
   const input = document.getElementById('pvdPct');
   const btn   = document.getElementById('pvdBtn');
-  const isEditing = !input.disabled; // ถ้าตอนนี้ edit mode → กด = บันทึก
+  const isEditing = !input.disabled;
   if(isEditing){
-    // บันทึก → disable input, เปลี่ยนปุ่มเป็น แก้ไข
+    // กด "บันทึก" → เก็บค่าลง JS variable + localStorage
+    savedPvdPct = parseFloat(input.value) || 0;
     input.disabled = true;
     btn.textContent = '✏️ แก้ไข';
     btn.className   = 'pvd-save-btn mode-edit';
     saveSalaryData();
     buildSalary();
   } else {
-    // แก้ไข → enable input, เปลี่ยนปุ่มเป็น บันทึก
+    // กด "แก้ไข" → enable input
+    input.value    = savedPvdPct;
     input.disabled = false;
     btn.textContent = '💾 บันทึก';
     btn.className   = 'pvd-save-btn mode-save';
@@ -1451,7 +1457,7 @@ function togglePvd(){
 }
 
 function onPvdChange(){
-  // คำนวณแบบ real-time ขณะแก้ไข แต่ยังไม่บันทึก
+  // คำนวณ real-time ขณะพิมพ์ แต่ยังไม่บันทึก (savedPvdPct ยังเป็นค่าเก่า)
   buildSalary();
 }
 
@@ -1459,7 +1465,11 @@ function buildSalary(){
   const salYear  = parseInt(document.getElementById('salYear').value)||2568;
   const salMonth = parseInt(document.getElementById('salMonth').value)||0;
   const salary   = parseFloat(document.getElementById('salary').value)||0;
-  const pvdPct   = parseFloat(document.getElementById('pvdPct').value)||0;
+  // อ่านค่า pvdPct: ถ้า input ล็อกอยู่ใช้ savedPvdPct, ถ้ากำลังแก้ไขใช้ค่าใน input
+  const pvdInput = document.getElementById('pvdPct');
+  const pvdPct   = pvdInput && !pvdInput.disabled
+    ? (parseFloat(pvdInput.value)||0)
+    : savedPvdPct;
   const periods  = salType==='year' ? 12 : 1;
 
   // กรองแถว OT ตาม period
