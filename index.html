@@ -91,10 +91,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:1
 .row-card.collapsed .collapse-btn{transform:rotate(-90deg);}
 /* แถวล่าง: ปุ่มกระทำ */
 .row-actions{display:flex;gap:6px;align-items:center;padding:0 14px 9px;border-top:0;onclick="event.stopPropagation()"}
-.save-btn{background:#6c63ff22;border:1px solid #6c63ff55;border-radius:7px;color:var(--accent);padding:5px 14px;cursor:pointer;font-size:11px;font-family:var(--sans);font-weight:600;transition:all 0.2s;flex:1;text-align:center;}
-.save-btn:hover{background:#6c63ff44;}
-.save-btn.saved{background:#00d4aa22;border-color:#00d4aa55;color:var(--green);}
-.delete-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--text3);padding:5px 12px;cursor:pointer;font-size:11px;font-family:var(--sans);transition:all 0.2s;white-space:nowrap;}
+.save-btn{border-radius:7px;padding:6px 14px;cursor:pointer;font-size:11px;font-family:var(--sans);font-weight:600;transition:all 0.2s;flex:1;text-align:center;white-space:nowrap;}
+.save-btn.mode-save{background:#6c63ff22;border:1px solid #6c63ff55;color:var(--accent);}
+.save-btn.mode-save:hover{background:#6c63ff44;}
+.save-btn.mode-edit{background:#00d4aa22;border:1px solid #00d4aa55;color:var(--green);}
+.save-btn.mode-edit:hover{background:#00d4aa44;}
+.delete-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--text3);padding:6px 12px;cursor:pointer;font-size:11px;font-family:var(--sans);transition:all 0.2s;white-space:nowrap;}
 .delete-btn:hover{border-color:var(--accent3);color:var(--accent3);background:#ff6b6b11;}
 
 .row-body{}
@@ -259,6 +261,12 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
 .sal-row-input.wide{width:130px;}
 .sal-pct-wrap{display:flex;align-items:center;gap:6px;}
 .sal-pct-wrap span{font-size:12px;color:var(--text3);}
+.pvd-save-btn{border-radius:7px;padding:5px 12px;cursor:pointer;font-size:11px;font-family:var(--sans);font-weight:600;transition:all 0.2s;white-space:nowrap;}
+.pvd-save-btn.mode-save{background:#6c63ff22;border:1px solid #6c63ff55;color:var(--accent);}
+.pvd-save-btn.mode-save:hover{background:#6c63ff44;}
+.pvd-save-btn.mode-edit{background:#00d4aa22;border:1px solid #00d4aa55;color:var(--green);}
+.pvd-save-btn.mode-edit:hover{background:#00d4aa44;}
+.sal-row-input:disabled{opacity:0.5;cursor:not-allowed;}
 
 .other-item{display:grid;grid-template-columns:1fr 130px 36px;gap:8px;align-items:center;padding:10px 18px;border-bottom:1px solid #1e2135;}
 .other-item:last-child{border-bottom:none;}
@@ -485,13 +493,14 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
     <div class="sal-section-title">🔴 รายการหัก</div>
 
     <!-- กองทุนสำรองเลี้ยงชีพ -->
-    <div class="sal-row">
+    <div class="sal-row" style="flex-wrap:wrap;gap:10px;">
       <div class="sal-row-label">กองทุนสำรองเลี้ยงชีพ<small>% จากฐานเงินเดือน</small></div>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="sal-pct-wrap">
-          <input type="number" class="sal-row-input" id="pvdPct" value="5" min="0" max="15" step="0.5" oninput="saveSalaryData();buildSalary()"/>
+          <input type="number" class="sal-row-input" id="pvdPct" value="5" min="0" max="15" step="0.5" disabled oninput="onPvdChange()"/>
           <span>%</span>
         </div>
+        <button id="pvdBtn" class="pvd-save-btn mode-edit" onclick="togglePvd()">✏️ แก้ไข</button>
         <div class="sal-row-value red" id="salPVD">—</div>
       </div>
     </div>
@@ -827,19 +836,28 @@ function removeRow(id){
 
 function onInput(id, field, val){
   const r = rows.find(r=>r.id===id);
-  if(r){ r[field]=val; r.saved=false; updateSaveBtn(id,false); recalcRow(id); saveData(); }
+  if(r){ r[field]=val; r.saved=false; updateToggleBtn(id,false); recalcRow(id); saveData(); }
 }
 
-function saveRow(id){
+function toggleSaveEdit(id){
   const r = rows.find(r=>r.id===id);
   if(!r) return;
-  r.saved = true;
-  r.collapsed = true;
+  if(!r.saved){
+    // กด "บันทึก" → บันทึก + ย่อ + เปลี่ยนปุ่มเป็น "แก้ไข"
+    r.saved = true;
+    r.collapsed = true;
+    const card = document.getElementById('row-'+id);
+    if(card) card.classList.add('collapsed');
+    updateToggleBtn(id, true);
+  } else {
+    // กด "แก้ไข" → ขยาย + เปลี่ยนปุ่มเป็น "บันทึก"
+    r.saved = false;
+    r.collapsed = false;
+    const card = document.getElementById('row-'+id);
+    if(card) card.classList.remove('collapsed');
+    updateToggleBtn(id, false);
+  }
   saveData();
-  // อัปเดต UI
-  updateSaveBtn(id, true);
-  const card = document.getElementById('row-'+id);
-  if(card) card.classList.add('collapsed');
 }
 
 function toggleCollapse(id){
@@ -851,11 +869,15 @@ function toggleCollapse(id){
   if(card) card.classList.toggle('collapsed', r.collapsed);
 }
 
-function updateSaveBtn(id, saved){
+function updateToggleBtn(id, saved){
   const btn = document.getElementById('sbtn-'+id);
-  if(btn){
-    btn.textContent = saved ? '✓ บันทึกแล้ว' : '💾 บันทึก';
-    btn.className = saved ? 'save-btn saved' : 'save-btn';
+  if(!btn) return;
+  if(saved){
+    btn.textContent = '✏️ แก้ไข';
+    btn.className   = 'save-btn mode-edit';
+  } else {
+    btn.textContent = '💾 บันทึก';
+    btn.className   = 'save-btn mode-save';
   }
 }
 
@@ -874,8 +896,8 @@ function renderRow(id){
 }
 
 function rowHTML(id, num, r){
-  const savedClass = r.saved ? 'saved' : '';
-  const savedText  = r.saved ? '✓ บันทึกแล้ว' : '💾 บันทึก';
+  const toggleClass = r.saved ? 'mode-edit' : 'mode-save';
+  const toggleText  = r.saved ? '✏️ แก้ไข' : '💾 บันทึก';
   return `
   <div class="row-header">
     <div class="row-header-top" onclick="toggleCollapse(${id})">
@@ -888,7 +910,7 @@ function rowHTML(id, num, r){
       <span class="collapse-btn">▼</span>
     </div>
     <div class="row-actions" onclick="event.stopPropagation()">
-      <button id="sbtn-${id}" class="save-btn ${savedClass}" onclick="saveRow(${id})">${savedText}</button>
+      <button id="sbtn-${id}" class="save-btn ${toggleClass}" onclick="toggleSaveEdit(${id})">${toggleText}</button>
       <button class="delete-btn" onclick="removeRow(${id})">🗑 ลบ</button>
     </div>
   </div>
@@ -1329,7 +1351,13 @@ let otherIdCounter = 0;
 function loadSalaryData(){
   try{
     const d = JSON.parse(localStorage.getItem(SAL_KEY)||'{}');
-    if(d.pvdPct)   document.getElementById('pvdPct').value = d.pvdPct;
+    if(d.pvdPct){
+      document.getElementById('pvdPct').value = d.pvdPct;
+      // โหลดค่าแล้ว → แสดงในสถานะ "บันทึกแล้ว" (disabled + ปุ่มแก้ไข)
+      document.getElementById('pvdPct').disabled = true;
+      const btn = document.getElementById('pvdBtn');
+      if(btn){ btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
+    }
     if(d.note)     document.getElementById('salNote').value = d.note;
     if(d.salMonth) document.getElementById('salMonth').value = d.salMonth;
     if(d.salYear)  document.getElementById('salYear').value  = d.salYear;
@@ -1399,6 +1427,32 @@ function renderOtherDeducts(){
       <button class="del-other-btn" onclick="removeOtherDeduct(${o.id})">✕</button>`;
     container.appendChild(div);
   });
+}
+
+// ── PVD TOGGLE ──
+function togglePvd(){
+  const input = document.getElementById('pvdPct');
+  const btn   = document.getElementById('pvdBtn');
+  const isEditing = !input.disabled; // ถ้าตอนนี้ edit mode → กด = บันทึก
+  if(isEditing){
+    // บันทึก → disable input, เปลี่ยนปุ่มเป็น แก้ไข
+    input.disabled = true;
+    btn.textContent = '✏️ แก้ไข';
+    btn.className   = 'pvd-save-btn mode-edit';
+    saveSalaryData();
+    buildSalary();
+  } else {
+    // แก้ไข → enable input, เปลี่ยนปุ่มเป็น บันทึก
+    input.disabled = false;
+    btn.textContent = '💾 บันทึก';
+    btn.className   = 'pvd-save-btn mode-save';
+    input.focus();
+  }
+}
+
+function onPvdChange(){
+  // คำนวณแบบ real-time ขณะแก้ไข แต่ยังไม่บันทึก
+  buildSalary();
 }
 
 function buildSalary(){
