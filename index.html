@@ -688,8 +688,7 @@ function loadData(){
   }
   document.getElementById('sumMonth').value = now.getMonth();
   document.getElementById('sumYear').value  = now.getFullYear()+543;
-  document.getElementById('salMonth').value = now.getMonth();
-  document.getElementById('salYear').value  = now.getFullYear()+543;
+  // salMonth/salYear และ pvdPct จะถูก set ใน loadSalaryData() เอง
   loadSalaryData();
 })();
 
@@ -1349,40 +1348,63 @@ let otherDeducts = []; // [{id, label, amount}]
 let otherIdCounter = 0;
 let savedPvdPct = 5; // เก็บค่าจริงใน JS ไม่พึ่ง DOM
 
+// เก็บค่า note ไว้ใน JS variable เพราะ DOM อาจซ่อนอยู่
+let savedNote = '';
+
 function loadSalaryData(){
   try{
-    const d = JSON.parse(localStorage.getItem(SAL_KEY)||'{}');
-    // เก็บลง JS variable เสมอ — ไม่พึ่ง DOM ที่อาจซ่อนอยู่
-    if(d.pvdPct != null) savedPvdPct = parseFloat(d.pvdPct);
-    if(d.note)     document.getElementById('salNote').value = d.note;
-    if(d.salMonth) document.getElementById('salMonth').value = d.salMonth;
-    if(d.salYear)  document.getElementById('salYear').value  = d.salYear;
-    if(d.salType)  { salType=d.salType; setSalTypeUI(salType); }
-    if(d.others)   {
-      d.others.forEach(o=>addOtherDeduct(o.label, o.amount));
-    }
-  }catch(e){}
+    const now = new Date();
+    const d   = JSON.parse(localStorage.getItem(SAL_KEY)||'{}');
+
+    // pvdPct — เก็บใน JS variable เสมอ
+    savedPvdPct = (d.pvdPct != null) ? parseFloat(d.pvdPct) : 5;
+
+    // note — เก็บใน JS variable ก่อน apply ทีหลัง
+    savedNote = d.note || '';
+
+    // salMonth / salYear
+    const salMonthEl = document.getElementById('salMonth');
+    const salYearEl  = document.getElementById('salYear');
+    if(salMonthEl) salMonthEl.value = (d.salMonth != null) ? d.salMonth : now.getMonth();
+    if(salYearEl)  salYearEl.value  = d.salYear  || (now.getFullYear()+543);
+
+    // salType
+    if(d.salType){ salType=d.salType; setSalTypeUI(salType); }
+
+    // others
+    if(d.others) d.others.forEach(o=>addOtherDeduct(o.label, o.amount));
+
+  }catch(e){ console.warn('loadSalaryData error', e); }
 }
 
-// apply ค่าจาก JS variable เข้า DOM (เรียกตอนเปิด tab salary)
+// apply ค่าจาก JS variables เข้า DOM (เรียกตอนเปิด tab salary)
 function applyPvdToDOM(){
-  const input = document.getElementById('pvdPct');
-  const btn   = document.getElementById('pvdBtn');
-  if(input){ input.value = savedPvdPct; input.disabled = true; }
-  if(btn){ btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
+  const input   = document.getElementById('pvdPct');
+  const btn     = document.getElementById('pvdBtn');
+  const noteEl  = document.getElementById('salNote');
+  if(input)  { input.value = savedPvdPct; input.disabled = true; }
+  if(btn)    { btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
+  if(noteEl && noteEl.value === '') noteEl.value = savedNote;
 }
 
 function saveSalaryData(){
   try{
+    // อ่าน note จาก DOM ถ้ามี ไม่งั้นใช้ variable
+    const noteEl = document.getElementById('salNote');
+    if(noteEl) savedNote = noteEl.value;
+
+    const salMonthEl = document.getElementById('salMonth');
+    const salYearEl  = document.getElementById('salYear');
+
     localStorage.setItem(SAL_KEY, JSON.stringify({
       pvdPct:   savedPvdPct,
-      note:     document.getElementById('salNote').value,
-      salMonth: document.getElementById('salMonth').value,
-      salYear:  document.getElementById('salYear').value,
+      note:     savedNote,
+      salMonth: salMonthEl ? salMonthEl.value : null,
+      salYear:  salYearEl  ? salYearEl.value  : null,
       salType,
       others:   otherDeducts
     }));
-  }catch(e){}
+  }catch(e){ console.warn('saveSalaryData error', e); }
 }
 
 function setSalType(type){
