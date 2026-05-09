@@ -444,11 +444,11 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
 ══════════════════════════════════════════ -->
 <div id="tab-salary" class="tab-content">
 
-  <!-- period selector -->
+  <!-- period toggle -->
   <div class="sum-controls" style="margin-bottom:16px;">
     <button class="sum-type-btn active" id="salBtnMonth" onclick="setSalType('month')">รายเดือน</button>
     <button class="sum-type-btn"        id="salBtnYear"  onclick="setSalType('year')">รายปี</button>
-    <select id="salMonth" onchange="buildSalary()">
+    <select id="salMonth" onchange="saveSalaryMeta();buildSalary()">
       <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option>
       <option value="2">มีนาคม</option><option value="3">เมษายน</option>
       <option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
@@ -456,12 +456,12 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <option value="8">กันยายน</option><option value="9">ตุลาคม</option>
       <option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
     </select>
-    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="buildSalary()"/>
+    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="saveSalaryMeta();buildSalary()"/>
   </div>
 
   <!-- hero -->
   <div class="salary-hero">
-    <div class="salary-hero-label">เงินเดือนสุทธิที่ได้รับ</div>
+    <div class="salary-hero-label" id="salHeroLabel">เงินเดือนสุทธิที่ได้รับ</div>
     <div class="salary-hero-amount" id="salNet">฿0.00</div>
     <div class="salary-hero-sub" id="salNetSub">รายได้รวม — รายการหัก</div>
   </div>
@@ -470,7 +470,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
   <div class="sal-section">
     <div class="sal-section-title">💚 รายได้</div>
     <div class="sal-row">
-      <div class="sal-row-label">ฐานเงินเดือน<small>ต่อเดือน / ต่อปี</small></div>
+      <div class="sal-row-label">ฐานเงินเดือน<small id="salBaseSub">—</small></div>
       <div class="sal-row-value green" id="salBase">—</div>
     </div>
     <div class="sal-row">
@@ -497,21 +497,21 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <div class="sal-row-label">กองทุนสำรองเลี้ยงชีพ<small>% จากฐานเงินเดือน</small></div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="sal-pct-wrap">
-          <input type="number" class="sal-row-input" id="pvdPct" value="5" min="0" max="15" step="0.5" disabled oninput="onPvdChange()"/>
+          <input type="number" class="sal-row-input" id="pvdPct" value="5" min="0" max="100" step="0.5" oninput="buildSalary()"/>
           <span>%</span>
         </div>
-        <button id="pvdBtn" class="pvd-save-btn mode-edit" onclick="togglePvd()">✏️ แก้ไข</button>
+        <button id="pvdSaveBtn" class="pvd-save-btn mode-save" onclick="savePvd()">💾 บันทึก %</button>
         <div class="sal-row-value red" id="salPVD">—</div>
       </div>
     </div>
 
     <!-- ประกันสังคม -->
     <div class="sal-row">
-      <div class="sal-row-label">ประกันสังคม<small>คงที่ 875 บาท/เดือน</small></div>
+      <div class="sal-row-label">ประกันสังคม<small id="salSSOSub">คงที่ 875 บาท/เดือน</small></div>
       <div class="sal-row-value red" id="salSSO">—</div>
     </div>
 
-    <!-- อื่นๆ (dynamic) -->
+    <!-- อื่นๆ -->
     <div id="otherDeductList"></div>
     <button class="add-other-btn" onclick="addOtherDeduct()">＋ เพิ่มรายการหักอื่นๆ</button>
   </div>
@@ -527,7 +527,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
   <!-- note -->
   <div class="note-box">
     <div class="note-box-title">📝 บันทึกเพิ่มเติม</div>
-    <textarea class="note-textarea" id="salNote" placeholder="จดบันทึก เช่น เบี้ยเลี้ยง, โบนัส, รายการพิเศษ หรือข้อมูลอื่นๆ ที่ต้องการจำไว้..." oninput="saveSalaryData()"></textarea>
+    <textarea class="note-textarea" id="salNote" placeholder="จดบันทึก เช่น เบี้ยเลี้ยง, โบนัส, รายการพิเศษ หรือข้อมูลอื่นๆ ที่ต้องการจำไว้..." oninput="saveNote()"></textarea>
   </div>
 
 </div>
@@ -688,8 +688,7 @@ function loadData(){
   }
   document.getElementById('sumMonth').value = now.getMonth();
   document.getElementById('sumYear').value  = now.getFullYear()+543;
-  // salMonth/salYear และ pvdPct จะถูก set ใน loadSalaryData() เอง
-  loadSalaryData();
+  // salary tab จะโหลดข้อมูลเมื่อเปิด tab (initSalaryTab)
 })();
 
 // ════════════════════════════════════════════
@@ -703,7 +702,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   if(name==='summary')  buildSummary();
   if(name==='calendar') buildCalendar();
-  if(name==='salary')   { applyPvdToDOM(); buildSalary(); }
+  if(name==='salary')   { initSalaryTab(); }
 }
 
 // ════════════════════════════════════════════
@@ -1337,115 +1336,100 @@ document.getElementById('calModal').addEventListener('click',function(e){
 });
 
 // ════════════════════════════════════════════
-//  PWA SERVICE WORKER
-// ════════════════════════════════════════════
-// ════════════════════════════════════════════
-//  SALARY PAGE
+//  SALARY PAGE — เขียนใหม่ทั้งหมด
+//  หลักการ: ข้อมูลทั้งหมดเก็บใน localStorage
+//  ผ่าน SAL_KEY เดียว โหลดเมื่อเปิด tab
 // ════════════════════════════════════════════
 const SAL_KEY = 'ot_salary_data';
 let salType = 'month';
-let otherDeducts = []; // [{id, label, amount}]
+let otherDeducts = [];
 let otherIdCounter = 0;
-let savedPvdPct = 5; // เก็บค่าจริงใน JS ไม่พึ่ง DOM
 
-// เก็บค่า note ไว้ใน JS variable เพราะ DOM อาจซ่อนอยู่
-let savedNote = '';
-
-function loadSalaryData(){
-  try{
-    const now = new Date();
-    const d   = JSON.parse(localStorage.getItem(SAL_KEY)||'{}');
-
-    // pvdPct — เก็บใน JS variable เสมอ
-    savedPvdPct = (d.pvdPct != null) ? parseFloat(d.pvdPct) : 5;
-
-    // note — เก็บใน JS variable ก่อน apply ทีหลัง
-    savedNote = d.note || '';
-
-    // salMonth / salYear
-    const salMonthEl = document.getElementById('salMonth');
-    const salYearEl  = document.getElementById('salYear');
-    if(salMonthEl) salMonthEl.value = (d.salMonth != null) ? d.salMonth : now.getMonth();
-    if(salYearEl)  salYearEl.value  = d.salYear  || (now.getFullYear()+543);
-
-    // salType
-    if(d.salType){ salType=d.salType; setSalTypeUI(salType); }
-
-    // others
-    if(d.others) d.others.forEach(o=>addOtherDeduct(o.label, o.amount));
-
-  }catch(e){ console.warn('loadSalaryData error', e); }
+// ── อ่านข้อมูลจาก localStorage ──
+function getSalData(){
+  try{ return JSON.parse(localStorage.getItem(SAL_KEY)||'{}'); }
+  catch(e){ return {}; }
 }
 
-// apply ค่าจาก JS variables เข้า DOM (เรียกตอนเปิด tab salary)
-function applyPvdToDOM(){
-  const input   = document.getElementById('pvdPct');
-  const btn     = document.getElementById('pvdBtn');
-  const noteEl  = document.getElementById('salNote');
-  if(input)  { input.value = savedPvdPct; input.disabled = true; }
-  if(btn)    { btn.textContent='✏️ แก้ไข'; btn.className='pvd-save-btn mode-edit'; }
-  if(noteEl && noteEl.value === '') noteEl.value = savedNote;
+// ── เขียน field เฉพาะ ไม่ overwrite ทั้งหมด ──
+function setSalField(key, val){
+  const d = getSalData();
+  d[key] = val;
+  localStorage.setItem(SAL_KEY, JSON.stringify(d));
 }
 
-function saveSalaryData(){
-  try{
-    // อ่าน note จาก DOM ถ้ามี ไม่งั้นใช้ variable
-    const noteEl = document.getElementById('salNote');
-    if(noteEl) savedNote = noteEl.value;
-
-    const salMonthEl = document.getElementById('salMonth');
-    const salYearEl  = document.getElementById('salYear');
-
-    localStorage.setItem(SAL_KEY, JSON.stringify({
-      pvdPct:   savedPvdPct,
-      note:     savedNote,
-      salMonth: salMonthEl ? salMonthEl.value : null,
-      salYear:  salYearEl  ? salYearEl.value  : null,
-      salType,
-      others:   otherDeducts
-    }));
-  }catch(e){ console.warn('saveSalaryData error', e); }
-}
-
-function setSalType(type){
-  salType = type;
-  setSalTypeUI(type);
-  saveSalaryData();
+// ── บันทึก pvdPct เมื่อกดปุ่ม ──
+function savePvd(){
+  const input = document.getElementById('pvdPct');
+  const btn   = document.getElementById('pvdSaveBtn');
+  const val   = parseFloat(input.value) || 0;
+  setSalField('pvdPct', val);
+  // feedback: ปุ่มเปลี่ยนชั่วคราว
+  btn.textContent = '✓ บันทึกแล้ว';
+  btn.className   = 'pvd-save-btn mode-edit';
+  setTimeout(()=>{
+    btn.textContent = '💾 บันทึก %';
+    btn.className   = 'pvd-save-btn mode-save';
+  }, 1500);
   buildSalary();
 }
 
-function setSalTypeUI(type){
+// ── บันทึก note ──
+function saveNote(){
+  const el = document.getElementById('salNote');
+  if(el) setSalField('note', el.value);
+}
+
+// ── บันทึก meta (month/year/salType) ──
+function saveSalaryMeta(){
+  const d = getSalData();
+  d.salType  = salType;
+  d.salMonth = document.getElementById('salMonth')?.value;
+  d.salYear  = document.getElementById('salYear')?.value;
+  localStorage.setItem(SAL_KEY, JSON.stringify(d));
+}
+
+// ── บันทึก otherDeducts ──
+function saveOthers(){
+  setSalField('others', otherDeducts);
+}
+
+// ── setSalType ──
+function setSalType(type){
+  salType = type;
   document.getElementById('salBtnMonth').classList.toggle('active', type==='month');
   document.getElementById('salBtnYear').classList.toggle('active',  type==='year');
   document.getElementById('salMonth').style.display = type==='month'?'':'none';
+  saveSalaryMeta();
+  buildSalary();
 }
 
+// ── other deducts ──
 function addOtherDeduct(label='', amount=''){
   const id = ++otherIdCounter;
   otherDeducts.push({id, label, amount});
   renderOtherDeducts();
+  saveOthers();
   buildSalary();
 }
-
 function removeOtherDeduct(id){
   otherDeducts = otherDeducts.filter(o=>o.id!==id);
   renderOtherDeducts();
-  saveSalaryData();
+  saveOthers();
   buildSalary();
 }
-
 function onOtherChange(id, field, val){
   const o = otherDeducts.find(o=>o.id===id);
-  if(o){ o[field]=val; saveSalaryData(); buildSalary(); }
+  if(o){ o[field]=val; saveOthers(); buildSalary(); }
 }
-
 function renderOtherDeducts(){
   const container = document.getElementById('otherDeductList');
-  container.innerHTML = '';
+  if(!container) return;
+  container.innerHTML='';
   otherDeducts.forEach(o=>{
-    const div = document.createElement('div');
-    div.className = 'other-item';
-    div.innerHTML = `
+    const div=document.createElement('div');
+    div.className='other-item';
+    div.innerHTML=`
       <input type="text" placeholder="รายการ เช่น ค่าอุปกรณ์" value="${o.label||''}"
         oninput="onOtherChange(${o.id},'label',this.value)"/>
       <input type="number" placeholder="จำนวน (฿)" value="${o.amount||''}" min="0" step="0.01"
@@ -1455,52 +1439,63 @@ function renderOtherDeducts(){
   });
 }
 
-// ── PVD TOGGLE ──
-function togglePvd(){
-  const input = document.getElementById('pvdPct');
-  const btn   = document.getElementById('pvdBtn');
-  const isEditing = !input.disabled;
-  if(isEditing){
-    // กด "บันทึก" → เก็บค่าลง JS variable + localStorage
-    savedPvdPct = parseFloat(input.value) || 0;
-    input.disabled = true;
-    btn.textContent = '✏️ แก้ไข';
-    btn.className   = 'pvd-save-btn mode-edit';
-    saveSalaryData();
-    buildSalary();
-  } else {
-    // กด "แก้ไข" → enable input
-    input.value    = savedPvdPct;
-    input.disabled = false;
-    btn.textContent = '💾 บันทึก';
-    btn.className   = 'pvd-save-btn mode-save';
-    input.focus();
-  }
-}
+// ── โหลดข้อมูลทั้งหมดเมื่อเปิด tab salary ──
+function initSalaryTab(){
+  const d   = getSalData();
+  const now = new Date();
 
-function onPvdChange(){
-  // คำนวณ real-time ขณะพิมพ์ แต่ยังไม่บันทึก (savedPvdPct ยังเป็นค่าเก่า)
+  // pvdPct — อ่านจาก storage, default 5
+  const pvdEl = document.getElementById('pvdPct');
+  if(pvdEl) pvdEl.value = (d.pvdPct != null) ? d.pvdPct : 5;
+
+  // note
+  const noteEl = document.getElementById('salNote');
+  if(noteEl) noteEl.value = d.note || '';
+
+  // salMonth / salYear — sync กับหน้า input ถ้าไม่มีใน storage
+  const salMonthEl = document.getElementById('salMonth');
+  const salYearEl  = document.getElementById('salYear');
+  if(salMonthEl){
+    salMonthEl.value = (d.salMonth != null)
+      ? d.salMonth
+      : document.getElementById('selMonth').value; // sync จากหน้าบันทึก
+  }
+  if(salYearEl){
+    salYearEl.value = d.salYear || document.getElementById('selYear').value;
+  }
+
+  // salType
+  if(d.salType){ salType=d.salType; }
+  document.getElementById('salBtnMonth').classList.toggle('active', salType==='month');
+  document.getElementById('salBtnYear').classList.toggle('active',  salType==='year');
+  if(salMonthEl) salMonthEl.style.display = salType==='month'?'':'none';
+
+  // others
+  otherDeducts   = [];
+  otherIdCounter = 0;
+  if(d.others) d.others.forEach(o=>addOtherDeduct(o.label, o.amount));
+
   buildSalary();
 }
 
+// ── คำนวณและแสดงผล ──
 function buildSalary(){
-  const salYear  = parseInt(document.getElementById('salYear').value)||2568;
-  const salMonth = parseInt(document.getElementById('salMonth').value)||0;
+  const salMonthEl = document.getElementById('salMonth');
+  const salYearEl  = document.getElementById('salYear');
+  const pvdEl      = document.getElementById('pvdPct');
+  if(!salMonthEl || !pvdEl) return;
+
+  const selMonth = parseInt(salMonthEl.value)||0;
+  const selYear  = parseInt(salYearEl.value)||2568;
   const salary   = parseFloat(document.getElementById('salary').value)||0;
-  // อ่านค่า pvdPct: ถ้า input ล็อกอยู่ใช้ savedPvdPct, ถ้ากำลังแก้ไขใช้ค่าใน input
-  const pvdInput = document.getElementById('pvdPct');
-  const pvdPct   = pvdInput && !pvdInput.disabled
-    ? (parseFloat(pvdInput.value)||0)
-    : savedPvdPct;
+  const pvdPct   = parseFloat(pvdEl.value)||0;
   const periods  = salType==='year' ? 12 : 1;
 
-  // กรองแถว OT ตาม period
   function matchRow(r){
-    if(!r.date)return false;
+    if(!r.date) return false;
     const[ry,rm]=r.date.split('-').map(Number);
     const by=ry+543;
-    if(salType==='year')  return by===salYear;
-    return by===salYear&&(rm-1)===salMonth;
+    return salType==='year' ? by===selYear : (by===selYear&&(rm-1)===selMonth);
   }
 
   let totalOT=0, totalNight=0;
@@ -1518,28 +1513,25 @@ function buildSalary(){
   const totalDeduct = pvdAmount + ssoAmount + otherTotal;
   const netSalary   = totalIncome - totalDeduct;
 
-  const p = periods>1 ? ` (×${periods} เดือน)` : '';
   const periodLabel = salType==='year'
-    ? `ปี พ.ศ. ${salYear}`
-    : `${MONTHS_TH[salMonth]} ${salYear}`;
+    ? `ปี พ.ศ. ${selYear}`
+    : `${MONTHS_TH[selMonth]} ${selYear}`;
+  const periodSuffix = periods>1 ? ` (×${periods} เดือน)` : '';
 
-  // update UI
+  setText('salHeroLabel', `เงินเดือนสุทธิที่ได้รับ — ${periodLabel}`);
   setText('salNet',         `฿${fmt(netSalary)}`);
-  setText('salNetSub',      `รายได้รวม ฿${fmt(totalIncome)} − หัก ฿${fmt(totalDeduct)}`);
-  setText('salBase',        `฿${fmt(baseSalary)}${p}`);
+  setText('salNetSub',      `รายได้ ฿${fmt(totalIncome)} − หัก ฿${fmt(totalDeduct)}`);
+  setText('salBaseSub',     `฿${fmt(salary)}/เดือน${periodSuffix}`);
+  setText('salBase',        `฿${fmt(baseSalary)}`);
   setText('salOT',          `฿${fmt(totalOT)}`);
   setText('salNight',       `฿${fmt(totalNight)}`);
   setText('salIncomeTotal', `฿${fmt(totalIncome)}`);
-  setText('salPVD',         `฿${fmt(pvdAmount)}${p}`);
-  setText('salSSO',         `฿${fmt(ssoAmount)}${p}`);
+  setText('salPVD',         `฿${fmt(pvdAmount)}${periodSuffix}`);
+  setText('salSSOSub',      `875 ฿/เดือน${periodSuffix}`);
+  setText('salSSO',         `฿${fmt(ssoAmount)}`);
   setText('salDeductTotal', `฿${fmt(totalDeduct)}`);
-
-  // title
-  document.getElementById('salary-period-label') &&
-    setText('salary-period-label', periodLabel);
 }
 
-// init salary data on load
 let swRegistration = null;
 
 function doUpdate(){
