@@ -1,4 +1,4 @@
-const CACHE = 'ot-calc-v14';
+const CACHE = 'ot-calc-v13';
 const FILES = [
   './index.html',
   './manifest.json',
