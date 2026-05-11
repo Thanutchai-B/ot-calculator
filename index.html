@@ -20,6 +20,20 @@
   --mono:'Consolas','Menlo','Courier New',monospace;
   --sans:'Leelawadee UI','Leelawadee','Thonburi','Noto Sans Thai','Tahoma',sans-serif;
 }
+body.light-mode{
+  --bg:#f0f2f8;--surface:#ffffff;--surface2:#f5f6fa;--surface3:#eaecf4;
+  --border:#d0d4e8;--accent:#5a52ee;--accent2:#00a885;--accent3:#e05050;
+  --accent4:#e07800;--text:#1a1d2e;--text2:#4a5070;--text3:#8890b0;
+  --normal:#2d72c0;--off:#7048c0;--holiday:#c04040;--green:#00a885;
+}
+/* sort + theme controls */
+.input-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.sort-label{font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap;}
+.sort-btn{padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.sort-btn.active{background:#6c63ff22;border-color:var(--accent);color:var(--accent);}
+.sort-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+.theme-btn{margin-left:auto;padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent);}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px;line-height:1.6;}
 ::-webkit-scrollbar{width:5px;height:5px;}
@@ -359,18 +373,15 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
     </div>
   </div>
 
-  <div class="info-box">
-    <h3>📐 กฎการคำนวณ</h3>
-    <div class="info-grid">
-      <div class="info-item"><div class="info-dot" style="background:var(--normal)"></div><span><strong style="color:var(--normal)">วันปกติ</strong> — ชม. OT หักพักจาก OT แล้ว × 1.5×</span></div>
-      <div class="info-item"><div class="info-dot" style="background:var(--off)"></div><span><strong style="color:var(--off)">วันOFF</strong> — (งาน+OT) รวมหักพัก × 1× ทั้งหมด</span></div>
-      <div class="info-item"><div class="info-dot" style="background:var(--holiday)"></div><span><strong style="color:var(--holiday)">นักขัตฤกษ์</strong> — (งาน+OT) รวม: ≤10ชม. หักพัก × 1× | >10ชม. ส่วนเกิน × 3×</span></div>
-      <div class="info-item"><div class="info-dot" style="background:#b48eff"></div><span><strong style="color:#b48eff">🌙 Night Shift</strong> — +200฿ เฉพาะวันปกติ+นักขัตฤกษ์ (เข้า 02–03 หรือ เลิก 02–06)</span></div>
-      <div class="info-item"><div class="info-dot" style="background:var(--accent4)"></div><span><strong style="color:var(--accent4)">หักพัก</strong> — &lt;4.5=ไม่หัก · 4.5=0.5 · 5–9=1 · 9.5=1.5 · 10–14=2 · 14.5=2.5 · 15–19=3 · 19.5=3.5 · 20=4</span></div>
-    </div>
-  </div>
+  <div class="notice">💡 <span>แสดงเฉพาะเดือนที่เลือก</span> — เปลี่ยนเดือน/ปีด้านบนเพื่อดูรายการของเดือนนั้น | <span>ข้ามคืน</span>: เวลาสิ้นสุดน้อยกว่าเวลาเริ่ม ระบบนับ +24ชม. อัตโนมัติ | ดูกฎการคำนวณได้ที่แท็บ 📖 คู่มือ</div>
 
-  <div class="notice">💡 <span>แสดงเฉพาะเดือนที่เลือก</span> — เปลี่ยนเดือน/ปีด้านบนเพื่อดูรายการของเดือนนั้น | <span>ข้ามคืน</span>: เวลาสิ้นสุดน้อยกว่าเวลาเริ่ม ระบบนับ +24ชม. อัตโนมัติ | กด <span>💾 บันทึก</span> เพื่อ confirm รายการ</div>
+  <div class="input-toolbar">
+    <span class="sort-label">เรียงตาม:</span>
+    <button class="sort-btn active" id="sortDate"   onclick="setSort('date')">📅 วันที่</button>
+    <button class="sort-btn"        id="sortLatest" onclick="setSort('latest')">🕐 บันทึกล่าสุด</button>
+    <button class="sort-btn"        id="sortAmount" onclick="setSort('amount')">💰 จำนวนเงิน</button>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀️ ธีมสว่าง</button>
+  </div>
 
   <div id="rows-container"></div>
   <button class="add-btn" onclick="addRow()">＋ เพิ่มรายการใหม่</button>
@@ -546,12 +557,26 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
     <h3>🚀 วิธีใช้งานทีละขั้นตอน</h3>
     <div class="steps">
       <div class="step"><div class="step-num">1</div><div class="step-text"><strong>ตั้งค่าเงินเดือน</strong>กรอกฐานเงินเดือน ระบบคำนวณอัตรา/ชม. อัตโนมัติ (เงินเดือน ÷ 30 ÷ 8)</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>กรอกวันที่และประเภทวัน</strong>เลือกระหว่าง วันปกติ / วันหยุด OFF / วันหยุดนักขัตฤกษ์</div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>กรอกเวลาเข้า-เลิกงาน</strong>เวลาทำงานปกติ ใช้คำนวณ Night Shift และรวมกับ OT ในวัน OFF/นักขัตฤกษ์</div></div>
-      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>กรอกเวลาเริ่ม-จบ OT</strong>ระบบคำนวณชั่วโมง หักพัก และเงิน OT ให้อัตโนมัติทันที</div></div>
-      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>กด 💾 บันทึก</strong>เพื่อยืนยันรายการ รายการจะย่อเหลือแถบเดียวแสดงวันที่และยอดเงิน</div></div>
-      <div class="step"><div class="step-num">6</div><div class="step-text"><strong>ดูปฏิทิน</strong>แท็บปฏิทินแสดงรายได้แต่ละวัน กดวันเพื่อดูหรือแก้ไขรายการ</div></div>
-      <div class="step"><div class="step-num">7</div><div class="step-text"><strong>ดูสรุป</strong>เลือกดูรายเดือนหรือรายปี มีกราฟและตารางรายละเอียดครบ</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><strong>เลือกเดือนที่แสดง</strong>รายการในหน้าบันทึกจะแสดงเฉพาะเดือนที่เลือก ถ้ากรอกวันที่ไม่ตรงระบบจะแจ้งเตือน</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text"><strong>กรอกวันที่และประเภทวัน</strong>เลือกระหว่าง วันปกติ / วันหยุด OFF / วันหยุดนักขัตฤกษ์</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>กรอกเวลาเข้า-เลิกงาน (ตาม Sked)</strong>ใช้คำนวณ Night Shift และรวมกับ OT ในวัน OFF/นักขัตฤกษ์</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>กรอกเวลาเริ่ม-จบ OT</strong>ระบบคำนวณชั่วโมง หักพัก และเงิน OT ให้อัตโนมัติทันที</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text"><strong>กด 💾 บันทึก</strong>รายการย่อแสดงวันที่+ยอดเงิน กด ✏️ แก้ไขเพื่อเปิดแก้ได้ตลอด</div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-text"><strong>จัดเรียงรายการ</strong>เลือกเรียงตาม วันที่ / บันทึกล่าสุด / จำนวนเงิน ได้จาก toolbar ด้านบน</div></div>
+      <div class="step"><div class="step-num">8</div><div class="step-text"><strong>เปลี่ยนธีม</strong>กดปุ่ม ☀️/🌙 เพื่อสลับธีมสว่าง-มืด ระบบจำไว้ให้อัตโนมัติ</div></div>
+      <div class="step"><div class="step-num">9</div><div class="step-text"><strong>ดูปฏิทิน</strong>กดวันที่มีข้อมูล (ขอบสีเขียว) เพื่อดู/แก้ไขรายการ หรือเพิ่มรายการใหม่</div></div>
+      <div class="step"><div class="step-num">10</div><div class="step-text"><strong>ดูสรุป</strong>เลือกดูรายเดือนหรือรายปี มีกราฟและตารางรายละเอียดเรียงตามวันที่</div></div>
+    </div>
+  </div>
+
+  <div class="info-box" style="margin-bottom:16px;">
+    <h3>📐 กฎการคำนวณโดยย่อ</h3>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-dot" style="background:var(--normal)"></div><span><strong style="color:var(--normal)">วันปกติ</strong> — ชม. OT หักพักจาก OT แล้ว × 1.5×</span></div>
+      <div class="info-item"><div class="info-dot" style="background:var(--off)"></div><span><strong style="color:var(--off)">วันOFF</strong> — (งาน+OT) รวมหักพัก × 1× ทั้งหมด</span></div>
+      <div class="info-item"><div class="info-dot" style="background:var(--holiday)"></div><span><strong style="color:var(--holiday)">นักขัตฤกษ์</strong> — (งาน+OT) รวม: ≤10ชม. หักพัก × 1× | >10ชม. ส่วนเกิน × 3×</span></div>
+      <div class="info-item"><div class="info-dot" style="background:#b48eff"></div><span><strong style="color:#b48eff">🌙 Night Shift</strong> — +200฿ เฉพาะวันปกติ+นักขัตฤกษ์ (เข้า 02–03 หรือ เลิก 02–06)</span></div>
+      <div class="info-item"><div class="info-dot" style="background:var(--accent4)"></div><span><strong style="color:var(--accent4)">หักพัก</strong> — &lt;4.5=ไม่หัก · 4.5=0.5 · 5–9=1 · 9.5=1.5 · 10–14=2 · 14.5=2.5 · 15–19=3 · 19.5=3.5 · 20=4</span></div>
     </div>
   </div>
 
@@ -717,6 +742,12 @@ function loadData(){
   document.getElementById('sumMonth').value = now.getMonth();
   document.getElementById('sumYear').value  = now.getFullYear()+543;
   // salary tab จะโหลดข้อมูลเมื่อเปิด tab (initSalaryTab)
+  applyTheme();
+  // restore sort button state
+  ['date','latest','amount'].forEach(t=>{
+    document.getElementById('sort'+t.charAt(0).toUpperCase()+t.slice(1))
+      ?.classList.toggle('active', t===currentSort);
+  });
 })();
 
 // ════════════════════════════════════════════
@@ -892,7 +923,56 @@ function removeRow(id){
 
 function onInput(id, field, val){
   const r = rows.find(r=>r.id===id);
-  if(r){ r[field]=val; r.saved=false; updateToggleBtn(id,false); recalcRow(id); saveData(); }
+  if(!r) return;
+  r[field] = val;
+  r.saved  = false;
+  updateToggleBtn(id, false);
+
+  // ถ้าเปลี่ยนวันที่ → ตรวจสอบว่าตรงกับเดือนที่เลือกไหม
+  if(field === 'date' && val){
+    const {m, y} = getActiveMonthYear();
+    const [ry, rm] = val.split('-').map(Number);
+    if((ry+543) !== y || (rm-1) !== m){
+      const dateLabel = fmtDate(val);
+      const selLabel  = `${MONTHS_TH[m]} ${y}`;
+      showWrongMonthWarn(dateLabel, selLabel);
+    }
+  }
+
+  // ถ้าเปลี่ยนวันที่ และมีรายการในวันนั้นแล้ว → ถามซ้ำ
+  if(field === 'date' && val){
+    const existing = rows.filter(rx => rx.date === val && rx.id !== id);
+    if(existing.length > 0){
+      pendingAddDate = val;
+      const [ry,rm,rd] = val.split('-').map(Number);
+      const dateLabel = `${rd} ${MONTHS_TH[rm-1]} ${ry+543}`;
+      document.getElementById('confirmTitle').textContent = `มีรายการในวันที่ ${dateLabel} แล้ว`;
+      document.getElementById('confirmSub').textContent =
+        `มีรายการอยู่แล้ว ${existing.length} รายการ ต้องการบันทึกซ้ำในวันเดียวกันหรือไม่?`;
+      document.getElementById('confirmModal').classList.add('open');
+    }
+  }
+
+  recalcRow(id);
+  saveData();
+}
+
+function showWrongMonthWarn(dateLabel, selLabel){
+  // สร้าง toast เตือน
+  let toast = document.getElementById('wrong-month-toast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'wrong-month-toast';
+    toast.style.cssText = `position:fixed;top:70px;left:50%;transform:translateX(-50%);
+      background:#ff6b6b;color:white;padding:10px 20px;border-radius:10px;
+      font-size:12px;font-weight:600;z-index:9999;text-align:center;
+      box-shadow:0 4px 16px #00000044;max-width:320px;line-height:1.5;`;
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = `⚠️ วันที่ ${dateLabel} ไม่ตรงกับเดือนที่แสดง (${selLabel})<br/>กรุณาเลือกเดือนให้ถูกต้องก่อนบันทึก`;
+  toast.style.display = 'block';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=>{ toast.style.display='none'; }, 4000);
 }
 
 function toggleSaveEdit(id){
@@ -1071,29 +1151,88 @@ function rowMatchesMonth(r, m, y){
 function recalcAll(){
   const rate = getRatePerHour();
   document.getElementById('rateDisplay').textContent = `${fmt(rate)} ฿/ชม.`;
+  rows.forEach(r => recalcRow(r.id));
+  renderSortedRows();
+  saveData();
+}
 
+function setText(id,val){ const e=document.getElementById(id); if(e)e.textContent=val; }
+function setHTML(id,val){ const e=document.getElementById(id); if(e)e.innerHTML=val; }
+
+// ════════════════════════════════════════════
+//  THEME
+// ════════════════════════════════════════════
+let currentTheme = localStorage.getItem('ot_theme') || 'dark';
+
+function applyTheme(){
+  const isLight = currentTheme === 'light';
+  document.body.classList.toggle('light-mode', isLight);
+  const btn = document.getElementById('themeBtn');
+  if(btn) btn.textContent = isLight ? '🌙 ธีมมืด' : '☀️ ธีมสว่าง';
+}
+
+function toggleTheme(){
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('ot_theme', currentTheme);
+  applyTheme();
+}
+
+// ════════════════════════════════════════════
+//  SORT
+// ════════════════════════════════════════════
+let currentSort = localStorage.getItem('ot_sort') || 'date';
+
+function setSort(type){
+  currentSort = type;
+  localStorage.setItem('ot_sort', type);
+  ['date','latest','amount'].forEach(t=>{
+    document.getElementById('sort'+t.charAt(0).toUpperCase()+t.slice(1))
+      ?.classList.toggle('active', t===type);
+  });
+  renderSortedRows();
+}
+
+function renderSortedRows(){
   const {m, y} = getActiveMonthYear();
-  let visibleCount = 0;
-  let visibleNum = 0;
+  // กรองเฉพาะเดือนที่เลือก
+  let visible = rows.filter(r => rowMatchesMonth(r, m, y));
 
+  // เรียงลำดับ
+  if(currentSort === 'date'){
+    visible.sort((a,b) => (a.date||'').localeCompare(b.date||''));
+  } else if(currentSort === 'latest'){
+    visible.sort((a,b) => b.id - a.id);
+  } else if(currentSort === 'amount'){
+    visible.sort((a,b) => {
+      const ca = calcRow(a), cb = calcRow(b);
+      return (cb.total||0) - (ca.total||0);
+    });
+  }
+
+  const container = document.getElementById('rows-container');
+  // เรียง DOM ตาม order ที่ต้องการ
+  let num = 0;
   rows.forEach(r => {
     const el = document.getElementById('row-'+r.id);
     if(!el) return;
-    const visible = rowMatchesMonth(r, m, y);
-    el.style.display = visible ? '' : 'none';
-    if(visible){
-      visibleNum++;
-      visibleCount++;
-      recalcRow(r.id);
-      // อัปเดตเลขรายการเฉพาะที่แสดง
+    const match = rowMatchesMonth(r, m, y);
+    el.style.display = match ? '' : 'none';
+    if(match){
+      num++;
       const numEl = el.querySelector('.row-num');
-      if(numEl) numEl.textContent = `#${visibleNum}`;
+      if(numEl) numEl.textContent = `#${num}`;
     }
   });
 
-  // แสดง empty state ถ้าไม่มีรายการในเดือนนี้
+  // reorder DOM ตาม visible sort
+  visible.forEach(r => {
+    const el = document.getElementById('row-'+r.id);
+    if(el) container.appendChild(el); // move to end in order
+  });
+
+  // empty state
   let emptyEl = document.getElementById('empty-month-notice');
-  if(visibleCount === 0){
+  if(visible.length === 0){
     if(!emptyEl){
       emptyEl = document.createElement('div');
       emptyEl.id = 'empty-month-notice';
@@ -1101,18 +1240,13 @@ function recalcAll(){
       emptyEl.innerHTML = `<div style="font-size:32px;margin-bottom:12px;">📭</div>
         <div style="font-weight:600;margin-bottom:4px;">ไม่มีรายการในเดือนนี้</div>
         <div style="font-size:12px;">กด "+ เพิ่มรายการใหม่" เพื่อเริ่มบันทึก</div>`;
-      document.getElementById('rows-container').appendChild(emptyEl);
+      container.appendChild(emptyEl);
     }
     emptyEl.style.display = '';
   } else if(emptyEl){
     emptyEl.style.display = 'none';
   }
-
-  saveData();
 }
-
-function setText(id,val){ const e=document.getElementById(id); if(e)e.textContent=val; }
-function setHTML(id,val){ const e=document.getElementById(id); if(e)e.innerHTML=val; }
 
 // ════════════════════════════════════════════
 //  SUMMARY
@@ -1138,7 +1272,7 @@ function buildSummary(){
     return buddhistY===sumYear && (rm-1)===sumMonth;
   }
 
-  const filtered = rows.filter(matchRow);
+  const filtered = rows.filter(matchRow).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
 
   // title
   if(sumType==='month'){
