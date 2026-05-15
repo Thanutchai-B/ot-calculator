@@ -454,7 +454,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
   <div class="sum-controls" style="margin-bottom:16px;">
     <button class="sum-type-btn active" id="salBtnMonth" onclick="setSalType('month')">รายเดือน</button>
     <button class="sum-type-btn"        id="salBtnYear"  onclick="setSalType('year')">รายปี</button>
-    <select id="salMonth" onchange="saveSalaryMeta();buildSalary()">
+    <select id="salMonth" onchange="saveSalaryMeta();loadNote();buildSalary()">
       <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option>
       <option value="2">มีนาคม</option><option value="3">เมษายน</option>
       <option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
@@ -462,7 +462,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <option value="8">กันยายน</option><option value="9">ตุลาคม</option>
       <option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
     </select>
-    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="saveSalaryMeta();buildSalary()"/>
+    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="saveSalaryMeta();loadNote();buildSalary()"/>
   </div>
 
   <!-- hero -->
@@ -1439,9 +1439,23 @@ function savePvd(){
 }
 
 // ── บันทึก note ──
+function getNoteKey(){
+  const m = document.getElementById('salMonth')?.value ?? 0;
+  const y = document.getElementById('salYear')?.value ?? 2568;
+  // รายปี: note_YYYY, รายเดือน: note_YYYY_MM
+  return salType === 'year' ? `note_${y}` : `note_${y}_${m}`;
+}
+
 function saveNote(){
   const el = document.getElementById('salNote');
-  if(el) setSalField('note', el.value);
+  if(el) setSalField(getNoteKey(), el.value);
+}
+
+function loadNote(){
+  const d    = getSalData();
+  const key  = getNoteKey();
+  const el   = document.getElementById('salNote');
+  if(el) el.value = d[key] || '';
 }
 
 // ── บันทึก meta (month/year/salType) ──
@@ -1465,6 +1479,7 @@ function setSalType(type){
   document.getElementById('salBtnYear').classList.toggle('active',  type==='year');
   document.getElementById('salMonth').style.display = type==='month'?'':'none';
   saveSalaryMeta();
+  loadNote();
   buildSalary();
 }
 
@@ -1512,9 +1527,7 @@ function initSalaryTab(){
   const pvdEl = document.getElementById('pvdPct');
   if(pvdEl) pvdEl.value = (d.pvdPct != null) ? d.pvdPct : 5;
 
-  // note
-  const noteEl = document.getElementById('salNote');
-  if(noteEl) noteEl.value = d.note || '';
+  // note — โหลดแยกตามเดือน (loadNote ต้องเรียกหลัง salMonth/salYear set แล้ว)
 
   // salMonth / salYear — sync กับหน้า input ถ้าไม่มีใน storage
   const salMonthEl = document.getElementById('salMonth');
@@ -1539,6 +1552,7 @@ function initSalaryTab(){
   otherIdCounter = 0;
   if(d.others) d.others.forEach(o=>addOtherDeduct(o.label, o.amount));
 
+  loadNote(); // โหลด note ของเดือน/ปีนี้ (ต้องหลัง salMonth/salYear set)
   buildSalary();
 }
 
