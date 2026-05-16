@@ -865,11 +865,20 @@ function addRow(prefillDate=''){
 
 function confirmAddRow(){
   closeConfirm();
-  doAddRow(pendingAddDate);
-  pendingAddDate = '';
+  if(pendingSaveId !== null){
+    // กรณีกดบันทึกรายการซ้ำ
+    doSaveRow(pendingSaveId);
+    pendingSaveId = null;
+  } else if(pendingAddDate){
+    // กรณีเพิ่มรายการใหม่ซ้ำวัน
+    doAddRow(pendingAddDate);
+    pendingAddDate = '';
+  }
 }
 
 function closeConfirm(){
+  pendingSaveId  = null;
+  pendingAddDate = '';
   document.getElementById('confirmModal').classList.remove('open');
 }
 
@@ -895,22 +904,30 @@ function onInput(id, field, val){
   if(r){ r[field]=val; r.saved=false; updateToggleBtn(id,false); recalcRow(id); saveData(); }
 }
 
+// รอ confirm ซ้ำ: เก็บ id ที่กำลังจะบันทึก
+let pendingSaveId = null;
+
 function toggleSaveEdit(id){
   const r = rows.find(r=>r.id===id);
   if(!r) return;
+
   if(!r.saved){
-    // กด "บันทึก" → บันทึก + ย่อ + แสดง "✓ บันทึกแล้ว" ชั่วคราว แล้วเปลี่ยนเป็น "✏️ แก้ไข"
-    r.saved = true;
-    r.collapsed = true;
-    const card = document.getElementById('row-'+id);
-    if(card) card.classList.add('collapsed');
-    // แสดง feedback "✓ บันทึกแล้ว" 1.2 วินาที แล้วค่อยเปลี่ยนเป็นปุ่มแก้ไข
-    const btn = document.getElementById('sbtn-'+id);
-    if(btn){
-      btn.textContent = '✓ บันทึกแล้ว';
-      btn.className   = 'save-btn mode-saved';
-      setTimeout(()=>{ updateToggleBtn(id, true); }, 1200);
+    // ตรวจสอบรายการซ้ำในวันเดียวกัน (เฉพาะตอนกด "บันทึก")
+    if(r.date){
+      const duplicates = rows.filter(rx => rx.date === r.date && rx.id !== id && rx.saved);
+      if(duplicates.length > 0){
+        const [ry,rm,rd] = r.date.split('-').map(Number);
+        const dateLabel  = `${rd} ${MONTHS_TH[rm-1]} ${ry+543}`;
+        pendingSaveId = id;
+        document.getElementById('confirmTitle').textContent =
+          `มีรายการในวันที่ ${dateLabel} แล้ว`;
+        document.getElementById('confirmSub').textContent =
+          `มีรายการที่บันทึกแล้ว ${duplicates.length} รายการในวันเดียวกัน ต้องการบันทึกซ้ำหรือไม่?`;
+        document.getElementById('confirmModal').classList.add('open');
+        return; // รอผู้ใช้ confirm ก่อน
+      }
     }
+    doSaveRow(id);
   } else {
     // กด "✏️ แก้ไข" → ขยาย + เปลี่ยนปุ่มเป็น "บันทึก"
     r.saved = false;
@@ -918,6 +935,22 @@ function toggleSaveEdit(id){
     const card = document.getElementById('row-'+id);
     if(card) card.classList.remove('collapsed');
     updateToggleBtn(id, false);
+    saveData();
+  }
+}
+
+function doSaveRow(id){
+  const r = rows.find(r=>r.id===id);
+  if(!r) return;
+  r.saved = true;
+  r.collapsed = true;
+  const card = document.getElementById('row-'+id);
+  if(card) card.classList.add('collapsed');
+  const btn = document.getElementById('sbtn-'+id);
+  if(btn){
+    btn.textContent = '✓ บันทึกแล้ว';
+    btn.className   = 'save-btn mode-saved';
+    setTimeout(()=>{ updateToggleBtn(id, true); }, 1200);
   }
   saveData();
 }
