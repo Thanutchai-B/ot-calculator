@@ -480,7 +480,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
   <div class="sum-controls" style="margin-bottom:16px;">
     <button class="sum-type-btn active" id="salBtnMonth" onclick="setSalType('month')">รายเดือน</button>
     <button class="sum-type-btn"        id="salBtnYear"  onclick="setSalType('year')">รายปี</button>
-    <select id="salMonth" onchange="saveSalaryMeta();loadNote();loadOthers();buildSalary()">
+    <select id="salMonth" onchange="saveSalaryMeta();loadNote();loadOthers();loadIncomes();buildSalary()">
       <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option>
       <option value="2">มีนาคม</option><option value="3">เมษายน</option>
       <option value="4">พฤษภาคม</option><option value="5">มิถุนายน</option>
@@ -488,7 +488,7 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <option value="8">กันยายน</option><option value="9">ตุลาคม</option>
       <option value="10">พฤศจิกายน</option><option value="11">ธันวาคม</option>
     </select>
-    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="saveSalaryMeta();loadNote();loadOthers();buildSalary()"/>
+    <input type="number" id="salYear" value="2568" min="2500" style="width:90px;" onchange="saveSalaryMeta();loadNote();loadOthers();loadIncomes();buildSalary()"/>
   </div>
 
   <!-- hero -->
@@ -513,6 +513,9 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
       <div class="sal-row-label">Night Shift<small>คำนวณจากรายการที่บันทึก</small></div>
       <div class="sal-row-value green" id="salNight">—</div>
     </div>
+    <!-- รายได้อื่นๆ (dynamic) -->
+    <div id="otherIncomeList"></div>
+    <button class="add-other-btn" style="border-radius:0;" onclick="addOtherIncome()">＋ เพิ่มรายได้อื่นๆ</button>
     <div class="sal-divider"></div>
     <div class="sal-total-row">
       <div class="sal-total-label">รวมรายได้</div>
@@ -1526,6 +1529,72 @@ function saveSalaryMeta(){
   localStorage.setItem(SAL_KEY, JSON.stringify(d));
 }
 
+// ════════════════════════════════════════════
+//  OTHER INCOMES (รายได้อื่นๆ แยกตามเดือน/ปี)
+// ════════════════════════════════════════════
+let otherIncomes   = [];
+let incomeIdCounter = 0;
+
+function getIncomesKey(){
+  const m = document.getElementById('salMonth')?.value ?? 0;
+  const y = document.getElementById('salYear')?.value  ?? 2568;
+  return salType === 'year' ? `incomes_${y}` : `incomes_${y}_${m}`;
+}
+
+function saveIncomes(){
+  setSalField(getIncomesKey(), otherIncomes);
+}
+
+function loadIncomes(){
+  const d   = getSalData();
+  const key = getIncomesKey();
+  otherIncomes   = [];
+  incomeIdCounter = 0;
+  const saved = d[key] || [];
+  saved.forEach(o => {
+    const id = ++incomeIdCounter;
+    otherIncomes.push({id, label: o.label||'', amount: o.amount||''});
+  });
+  renderOtherIncomes();
+}
+
+function addOtherIncome(label='', amount=''){
+  const id = ++incomeIdCounter;
+  otherIncomes.push({id, label, amount});
+  renderOtherIncomes();
+  saveIncomes();
+  buildSalary();
+}
+
+function removeOtherIncome(id){
+  otherIncomes = otherIncomes.filter(o=>o.id!==id);
+  renderOtherIncomes();
+  saveIncomes();
+  buildSalary();
+}
+
+function onIncomeChange(id, field, val){
+  const o = otherIncomes.find(o=>o.id===id);
+  if(o){ o[field]=val; saveIncomes(); buildSalary(); }
+}
+
+function renderOtherIncomes(){
+  const container = document.getElementById('otherIncomeList');
+  if(!container) return;
+  container.innerHTML='';
+  otherIncomes.forEach(o=>{
+    const div=document.createElement('div');
+    div.className='other-item';
+    div.innerHTML=`
+      <input type="text" placeholder="รายการ เช่น โบนัส, เบี้ยเลี้ยง" value="${o.label||''}"
+        oninput="onIncomeChange(${o.id},'label',this.value)"/>
+      <input type="number" placeholder="จำนวน (฿)" value="${o.amount||''}" min="0" step="0.01"
+        oninput="onIncomeChange(${o.id},'amount',this.value)"/>
+      <button class="del-other-btn" onclick="removeOtherIncome(${o.id})">✕</button>`;
+    container.appendChild(div);
+  });
+}
+
 // ── key สำหรับ others แยกตามเดือน/ปี ──
 function getOthersKey(){
   const m = document.getElementById('salMonth')?.value ?? 0;
@@ -1561,6 +1630,7 @@ function setSalType(type){
   saveSalaryMeta();
   loadNote();
   loadOthers();
+  loadIncomes();
   buildSalary();
 }
 
@@ -1628,8 +1698,9 @@ function initSalaryTab(){
   document.getElementById('salBtnYear').classList.toggle('active',  salType==='year');
   if(salMonthEl) salMonthEl.style.display = salType==='month'?'':'none';
 
-  loadNote();   // โหลด note ของเดือน/ปีนี้
-  loadOthers(); // โหลด others ของเดือน/ปีนี้
+  loadNote();    // โหลด note ของเดือน/ปีนี้
+  loadOthers();  // โหลด others ของเดือน/ปีนี้
+  loadIncomes(); // โหลด incomes ของเดือน/ปีนี้
   buildSalary();
 }
 
@@ -1664,7 +1735,8 @@ function buildSalary(){
   const pvdAmount   = baseSalary * pvdPct / 100;
   const ssoAmount   = 875 * periods;
   const otherTotal  = otherDeducts.reduce((s,o)=>s+(parseFloat(o.amount)||0),0) * periods;
-  const totalIncome = baseSalary + totalOT + totalNight;
+  const otherIncTotal = otherIncomes.reduce((s,o)=>s+(parseFloat(o.amount)||0),0) * periods;
+  const totalIncome   = baseSalary + totalOT + totalNight + otherIncTotal;
   const totalDeduct = pvdAmount + ssoAmount + otherTotal;
   const netSalary   = totalIncome - totalDeduct;
 
