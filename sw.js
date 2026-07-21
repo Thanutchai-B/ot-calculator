@@ -1,55 +1,51 @@
-const CACHE = 'ot-calc-v21';
-const FILES = [
+const CACHE = 'ot-calc-v23'; // อัปเดตเวอร์ชันใหม่ล่าสุดแล้ว (ตาม Req 11)
+const urlsToCache = [
+  './',
   './index.html',
-  './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './manifest.json'
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(FILES))
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE).then((cache) => {
+      return cache.addAll(urlsToCache);
+    })
   );
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
   self.clients.claim();
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-
-  // ถ้า URL มี ?_r= → ดึงจาก network เสมอ (cache-busting refresh)
-  if(url.searchParams.has('_r')){
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          // อัปเดต cache ด้วยไฟล์ใหม่
-          const clone = res.clone();
-          caches.open(CACHE).then(c => {
-            // cache ในชื่อปกติ (ไม่มี _r)
-            url.searchParams.delete('_r');
-            c.put(new Request(url.toString()), clone);
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE).then((cache) => {
+            cache.put(event.request, responseToCache);
           });
-          return res;
-        })
-        .catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // ปกติ: cache first
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Fallback or ignore
+      });
+      return cachedResponse || fetchPromise;
+    })
   );
-});
-
-self.addEventListener('message', e => {
-  if(e.data && e.data.type === 'SKIP_WAITING'){
-    self.skipWaiting();
-  }
 });
