@@ -995,8 +995,12 @@ function renderOtherDeducts(){ const c = document.getElementById('otherDeductLis
 
 function buildSalary(){
   const base = parseFloat(document.getElementById('salary').value)||0;
-  const pvdPct = parseFloat(getSalData().pvdPct) || parseFloat(document.getElementById('pvdPct').value) || 5;
-  document.getElementById('pvdPct').value = pvdPct;
+  // อ่าน pvdPct จาก storage เสมอ — ไม่แตะ DOM เพื่อป้องกันรีเซ็ต
+  const storedPvd = getSalData().pvdPct;
+  const pvdPct = (storedPvd != null) ? parseFloat(storedPvd) : (parseFloat(document.getElementById('pvdPct').value) || 5);
+  // sync ค่าเข้า input เฉพาะตอนที่ tab salary กำลังแสดงอยู่
+  const pvdEl = document.getElementById('pvdPct');
+  if(pvdEl && document.getElementById('tab-salary').classList.contains('active')) pvdEl.value = pvdPct;
   const sso = 875;
   
   const filtered = rows.filter(r=>{ if(!r.date)return false; const[ry,rm]=r.date.split('-').map(Number); const bY=ry+543; return salType==='year'?bY===currentYear:bY===currentYear&&(rm-1)===currentMonth; });
@@ -1023,6 +1027,116 @@ function buildSalary(){
   document.getElementById('salDeductTotal').textContent = `-฿${fmt(totalDed)}`;
   
   document.getElementById('salNet').textContent = `฿${fmt(totalInc - totalDed)}`;
+}
+
+// ════════════════════════════════════════════
+//  REFRESH + PULL-TO-REFRESH (iOS Safe)
+// ════════════════════════════════════════════
+let swRegistration = null;
+
+function hardRefresh(){
+  const btn = document.getElementById('refreshBtn');
+  if(btn) btn.classList.add('spinning');
+  doReload();
+}
+
+function doReload(){
+  if(swRegistration && swRegistration.waiting){
+    swRegistration.waiting.postMessage({type:'SKIP_WAITING'});
+    return;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('_r', Date.now());
+  window.location.replace(url.toString());
+}
+
+// Pull-to-Refresh
+(function setupPTR(){
+  const THRESHOLD = 72, MAX_PULL = 110;
+  let startY=0, dist=0, active=false, triggered=false;
+  const ind=document.getElementById('ptrIndicator');
+  const txt=document.getElementById('ptrText');
+  const icon=document.getElementById('ptrIcon');
+  function reset(){ active=false; triggered=false; dist=0; startY=0; ind.className='ptr-indicator'; }
+  window.addEventListener('touchstart',e=>{
+    if(window.scrollY>2)return;
+    startY=e.touches[0].pageY; active=true; triggered=false;
+  },{passive:true});
+  window.addEventListener('touchmove',e=>{
+    if(!active)return;
+    dist=e.touches[0].pageY-startY;
+    if(dist<=0){reset();return;}
+    if(dist>=THRESHOLD&&!triggered){
+      triggered=true; ind.className='ptr-indicator releasing';
+      txt.textContent='ปล่อยเพื่อรีเฟรช'; icon.textContent='↑';
+    }else if(dist<THRESHOLD){
+      ind.className='ptr-indicator pulling';
+      txt.textContent='ดึงลงเพื่อรีเฟรช'; icon.textContent='↓';
+    }
+  },{passive:true});
+  window.addEventListener('touchend',()=>{
+    if(!active)return;
+    if(triggered){
+      ind.className='ptr-indicator loading';
+      txt.textContent='กำลังรีเฟรช...'; icon.textContent='↻';
+      const btn=document.getElementById('refreshBtn');
+      if(btn)btn.classList.add('spinning');
+      setTimeout(doReload,700);
+    }else{ ind.className='ptr-indicator'; }
+    active=false; dist=0; startY=0;
+  });
+})();
+
+// ════════════════════════════════════════════
+//  SERVICE WORKER REGISTRATION
+// ════════════════════════════════════════════
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      swRegistration = reg;
+      if(reg.waiting){ showUpdateBar(); }
+      reg.addEventListener('updatefound',()=>{
+        const sw=reg.installing;
+        sw.addEventListener('statechange',()=>{
+          if(sw.state==='installed'&&navigator.serviceWorker.controller){ showUpdateBar(); }
+        });
+      });
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(!refreshing){ refreshing=true; window.location.reload(); }
+      });
+    }catch(e){ console.log('SW error',e); }
+  });
+}
+
+// PWA Install hint for iOS
+window.addEventListener('load',()=>{
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS&&!window.navigator.standalone){
+    const bar=document.createElement('div');
+    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#1a1d27;border-top:1px solid #6c63ff44;padding:12px 18px 28px;display:flex;gap:12px;align-items:center;';
+    bar.innerHTML='<div style="font-size:24px">⏱</div><div style="flex:1;font-size:12px;color:#9399b8"><strong style="color:#e8eaf6;display:block;margin-bottom:2px">เพิ่มลง Home Screen</strong>กด Share (□↑) → Add to Home Screen</div><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#5d6385;font-size:18px;cursor:pointer">✕</button>';
+    document.body.appendChild(bar);
+  }
+});
+
+function showUpdateBar(){
+  let bar=document.getElementById('updateBar');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='updateBar';
+    bar.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:10000;background:linear-gradient(135deg,#1e2638,#1a1d27);border-top:2px solid #00d4aa;padding:14px 18px 28px;display:flex;gap:12px;align-items:center;box-shadow:0 -4px 24px #00000066;';
+    bar.innerHTML='<div style="font-size:26px">🔄</div><div style="flex:1"><strong style="color:#00d4aa;display:block;margin-bottom:2px;font-size:13px">มีอัปเดตใหม่พร้อมใช้งาน!</strong><span style="font-size:11px;color:#9399b8">กดเพื่อรับเวอร์ชันล่าสุด</span></div><button onclick="doUpdate()" style="background:#00d4aa;border:none;border-radius:9px;color:#0f1117;padding:9px 18px;font-weight:700;cursor:pointer;font-size:13px">อัปเดตเดี๋ยวนี้</button><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#5d6385;font-size:18px;cursor:pointer">✕</button>';
+    document.body.appendChild(bar);
+  }
+  bar.style.display='flex';
+}
+
+function doUpdate(){
+  if(swRegistration&&swRegistration.waiting){
+    swRegistration.waiting.postMessage({type:'SKIP_WAITING'});
+  }
 }
 </script>
 </body>
