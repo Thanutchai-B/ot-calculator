@@ -181,15 +181,21 @@ td.hl{color:var(--text);font-weight:600;}
 td.green{color:var(--green);font-weight:700;font-family:var(--mono);}
 td.orange{color:var(--accent4);font-family:var(--mono);}
 
-.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
-.chart-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:16px;text-transform:uppercase;letter-spacing:1px;}
-.chart-bars{display:flex;align-items:flex-end;gap:6px;height:160px;padding-bottom:28px;position:relative;}
-.chart-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;justify-content:flex-end;position:relative;}
-.chart-bar{width:100%;border-radius:5px 5px 0 0;transition:all 0.3s;cursor:pointer;min-height:2px;position:relative;}
-.chart-bar:hover{filter:brightness(1.2);}
-.chart-bar-label{position:absolute;bottom:-22px;font-size:9px;color:var(--text3);white-space:nowrap;text-align:center;}
-.chart-bar-val{position:absolute;top:-18px;font-size:9px;font-family:var(--mono);color:var(--text2);white-space:nowrap;text-align:center;width:100%;}
-.chart-bar.total-bar{background:linear-gradient(180deg,var(--accent2),#009d7e);}
+/* date-range picker */
+.range-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:14px;}
+.range-wrap label{font-size:11px;color:var(--text2);font-weight:600;display:block;margin-bottom:4px;}
+.range-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.range-row input[type=date]{flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text1);font-size:13px;}
+.range-row .range-sep{font-size:13px;color:var(--text3);}
+.range-btn{background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;padding:8px 16px;cursor:pointer;white-space:nowrap;}
+.range-btn:active{opacity:.8;}
+.range-mode-badge{display:inline-block;font-size:11px;background:#6c63ff22;border:1px solid #6c63ff44;color:var(--accent);border-radius:6px;padding:3px 10px;margin-top:8px;}
+/* hour cards */
+.hour-cards{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.h-card{flex:1;min-width:calc(50% - 4px);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+.h-card-label{font-size:11px;color:var(--text3);margin-bottom:4px;}
+.h-card-val{font-size:18px;font-weight:700;color:var(--text1);font-family:var(--mono);}
+.h-card-sub{font-size:10px;color:var(--text3);margin-top:2px;}
 
 /* CALENDAR TAB */
 .cal-controls{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
@@ -380,9 +386,11 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
 
 <!-- TAB: สรุป -->
 <div id="tab-summary" class="tab-content">
+  <!-- โหมด: รายเดือน / รายปี / ช่วงวันที่ -->
   <div class="sum-controls">
-    <button class="sum-type-btn active" id="sumBtnMonth" onclick="setSumType('month')">รายเดือน</button>
-    <button class="sum-type-btn"        id="sumBtnYear"  onclick="setSumType('year')">รายปี</button>
+    <button class="sum-type-btn active" id="sumBtnMonth"  onclick="setSumType('month')">รายเดือน</button>
+    <button class="sum-type-btn"        id="sumBtnYear"   onclick="setSumType('year')">รายปี</button>
+    <button class="sum-type-btn"        id="sumBtnRange"  onclick="setSumType('range')">ช่วงวันที่</button>
     <select id="sumMonth" onchange="setCurrentPeriod(this.value, currentYear)">
       <option value="0">มกราคม</option><option value="1">กุมภาพันธ์</option>
       <option value="2">มีนาคม</option><option value="3">เมษายน</option>
@@ -393,22 +401,74 @@ td.orange{color:var(--accent4);font-family:var(--mono);}
     </select>
     <input type="number" id="sumYear" value="2568" min="2500" style="width:90px;" onchange="setCurrentPeriod(currentMonth, this.value)"/>
   </div>
+
+  <!-- Date-range picker (ซ่อนเมื่อไม่ได้ใช้) -->
+  <div class="range-wrap" id="rangeWrap" style="display:none;">
+    <label>เลือกช่วงวันที่ที่ต้องการดู</label>
+    <div class="range-row">
+      <input type="date" id="rangeFrom" onchange="applyRange()"/>
+      <span class="range-sep">—</span>
+      <input type="date" id="rangeTo"   onchange="applyRange()"/>
+    </div>
+    <div id="rangeBadge"></div>
+  </div>
+
   <div class="month-label" id="summaryTitle">—</div>
+
   <div class="summary-hero">
     <div class="summary-hero-label">รวมรายได้ OT + Night Shift</div>
     <div class="summary-hero-amount" id="sumGrand">฿0.00</div>
     <div class="summary-hero-sub" id="sumGrandSub">—</div>
   </div>
+
+  <!-- การ์ดรายได้ + ชั่วโมงสุทธิ แยกประเภท -->
   <div class="summary-cards">
-    <div class="s-card normal"><div class="s-card-label">📅 วันปกติ (1.5×)</div><div class="s-card-amount" id="sNormalAmt">฿0.00</div><div class="s-card-sub" id="sNormalSub">—</div></div>
-    <div class="s-card off"><div class="s-card-label">🔵 วันOFF (1×)</div><div class="s-card-amount" id="sOffAmt">฿0.00</div><div class="s-card-sub" id="sOffSub">—</div></div>
-    <div class="s-card holiday"><div class="s-card-label">🔴 นักขัตฤกษ์ (1×/3×)</div><div class="s-card-amount" id="sHolidayAmt">฿0.00</div><div class="s-card-sub" id="sHolidaySub">—</div></div>
-    <div class="s-card night"><div class="s-card-label">🌙 Night Shift</div><div class="s-card-amount" id="sNightAmt">฿0.00</div><div class="s-card-sub" id="sNightSub">—</div></div>
+    <div class="s-card normal">
+      <div class="s-card-label">📅 วันปกติ (1.5×)</div>
+      <div class="s-card-amount" id="sNormalAmt">฿0.00</div>
+      <div class="s-card-sub" id="sNormalSub">—</div>
+    </div>
+    <div class="s-card off">
+      <div class="s-card-label">🔵 วันOFF (1×)</div>
+      <div class="s-card-amount" id="sOffAmt">฿0.00</div>
+      <div class="s-card-sub" id="sOffSub">—</div>
+    </div>
+    <div class="s-card holiday">
+      <div class="s-card-label">🔴 นักขัตฤกษ์ (1×/3×)</div>
+      <div class="s-card-amount" id="sHolidayAmt">฿0.00</div>
+      <div class="s-card-sub" id="sHolidaySub">—</div>
+    </div>
+    <div class="s-card night">
+      <div class="s-card-label">🌙 Night Shift</div>
+      <div class="s-card-amount" id="sNightAmt">฿0.00</div>
+      <div class="s-card-sub" id="sNightSub">—</div>
+    </div>
   </div>
-  <div class="chart-wrap" id="chartWrap">
-    <div class="chart-title" id="chartTitle">กราฟรายได้ OT</div>
-    <div class="chart-bars" id="chartBars"></div>
+
+  <!-- ชั่วโมง OT สุทธิ แยกประเภทวัน -->
+  <div class="hour-cards" id="hourCards">
+    <div class="h-card">
+      <div class="h-card-label">📅 วันปกติ — ชั่วโมง OT สุทธิ</div>
+      <div class="h-card-val" id="hNormal">0 ชม.</div>
+      <div class="h-card-sub" id="hNormalSub">—</div>
+    </div>
+    <div class="h-card">
+      <div class="h-card-label">🔵 วันOFF — ชั่วโมง OT สุทธิ</div>
+      <div class="h-card-val" id="hOff">0 ชม.</div>
+      <div class="h-card-sub" id="hOffSub">—</div>
+    </div>
+    <div class="h-card">
+      <div class="h-card-label">🔴 นักขัตฤกษ์ — ชั่วโมง OT สุทธิ</div>
+      <div class="h-card-val" id="hHoliday">0 ชม.</div>
+      <div class="h-card-sub" id="hHolidaySub">—</div>
+    </div>
+    <div class="h-card" style="min-width:100%;">
+      <div class="h-card-label">⏱ รวมชั่วโมง OT สุทธิทั้งหมด (หักพักแล้ว)</div>
+      <div class="h-card-val" id="hTotal">0 ชม.</div>
+      <div class="h-card-sub" id="hTotalSub">—</div>
+    </div>
   </div>
+
   <div class="table-wrap">
     <div class="table-head" id="tableHead">รายการทั้งหมด</div>
     <div class="overflow-x">
@@ -869,23 +929,116 @@ function recalcAll(){
 // ════════════════════════════════════════════
 //  SUMMARY
 // ════════════════════════════════════════════
-function setSumType(type){ sumType=type; document.getElementById('sumBtnMonth').classList.toggle('active',type==='month'); document.getElementById('sumBtnYear').classList.toggle('active',type==='year'); document.getElementById('sumMonth').style.display=type==='month'?'block':'none'; buildSummary(); }
+// ─── Summary state ────────────────────────
+let rangeFrom='', rangeTo='';
+
+function setSumType(type){
+  sumType=type;
+  document.getElementById('sumBtnMonth').classList.toggle('active', type==='month');
+  document.getElementById('sumBtnYear' ).classList.toggle('active', type==='year');
+  document.getElementById('sumBtnRange').classList.toggle('active', type==='range');
+  document.getElementById('sumMonth').style.display = type==='month' ? 'block' : 'none';
+  document.getElementById('sumYear' ).style.display = type==='year'  ? 'inline-block' : (type==='month' ? 'inline-block' : 'none');
+  document.getElementById('rangeWrap').style.display = type==='range' ? 'block' : 'none';
+  buildSummary();
+}
+
+function applyRange(){
+  rangeFrom = document.getElementById('rangeFrom').value; // YYYY-MM-DD (greg)
+  rangeTo   = document.getElementById('rangeTo').value;
+  buildSummary();
+}
+
 function buildSummary(){
-  const filtered = rows.filter(r=>{ if(!r.date)return false; const[ry,rm]=r.date.split('-').map(Number); const bY=ry+543; return sumType==='year'?bY===currentYear:bY===currentYear&&(rm-1)===currentMonth; });
-  document.getElementById('summaryTitle').innerHTML = sumType==='month'?`สรุปเดือน <strong>${MONTHS_TH[currentMonth]}</strong> <small>ปี พ.ศ. ${currentYear}</small>`:`สรุปทั้งปี <strong>พ.ศ. ${currentYear}</strong>`;
-  
-  let totals={normal:{h:0,inc:0},off:{h:0,inc:0},holiday:{h:0,inc:0}}; let nightDays=0,nightTotal=0,otTotal=0,grandTotal=0;
+  // ── กรองข้อมูลตามโหมด ──────────────────
+  let filtered;
+  if(sumType==='range'){
+    filtered = rows.filter(r=>{
+      if(!r.date) return false;
+      if(rangeFrom && r.date < rangeFrom) return false;
+      if(rangeTo   && r.date > rangeTo  ) return false;
+      return true;
+    });
+    // badge แสดงช่วงที่เลือก
+    const badge = document.getElementById('rangeBadge');
+    if(rangeFrom || rangeTo){
+      const fmt2 = d => d ? fmtDate(d) : '?';
+      badge.innerHTML = `<span class="range-mode-badge">📅 ${fmt2(rangeFrom)} — ${fmt2(rangeTo)}</span>`;
+    } else {
+      badge.innerHTML = '';
+    }
+    document.getElementById('summaryTitle').innerHTML = `สรุปช่วงวันที่เลือก`;
+  } else {
+    filtered = rows.filter(r=>{
+      if(!r.date) return false;
+      const[ry,rm]=r.date.split('-').map(Number); const bY=ry+543;
+      return sumType==='year' ? bY===currentYear : bY===currentYear&&(rm-1)===currentMonth;
+    });
+    document.getElementById('summaryTitle').innerHTML = sumType==='month'
+      ? `สรุปเดือน <strong>${MONTHS_TH[currentMonth]}</strong> <small>ปี พ.ศ. ${currentYear}</small>`
+      : `สรุปทั้งปี <strong>พ.ศ. ${currentYear}</strong>`;
+  }
+
+  // ── คำนวณ ──────────────────────────────
+  let totals={normal:{h:0,inc:0,days:0},off:{h:0,inc:0,days:0},holiday:{h:0,inc:0,days:0}};
+  let nightDays=0, nightTotal=0, otTotal=0, grandTotal=0;
   const tbody=document.getElementById('summaryTableBody'); tbody.innerHTML='';
-  
+
   filtered.forEach((r,i)=>{
-    const c=calcRow(r); totals[r.dayType].h+=c.displayNetOT||0; totals[r.dayType].inc+=c.otInc||0;
-    if(c.night){nightDays++;nightTotal+=200;} otTotal+=c.otInc||0; grandTotal+=c.total||0;
+    const c=calcRow(r);
+    const dt = r.dayType in totals ? r.dayType : 'normal';
+    totals[dt].h   += c.displayNetOT||0;
+    totals[dt].inc += c.otInc||0;
+    totals[dt].days++;
+    if(c.night){ nightDays++; nightTotal+=200; }
+    otTotal    += c.otInc||0;
+    grandTotal += c.total||0;
     const tl={normal:'วันปกติ',off:'วันOFF',holiday:'นักขัตฤกษ์'}[r.dayType]||'–';
-    tbody.innerHTML+=`<tr><td>${i+1}</td><td class="mono">${r.date||'–'}</td><td><span class="type-badge ${r.dayType}">${tl}</span></td><td>${r.workIn||'–'}</td><td>${r.workOut||'–'}</td><td>${r.otIn||'–'}</td><td>${r.otOut||'–'}</td><td class="mono">${hoursToHM(c.displayRawOT)}</td><td class="orange">${c.displayBrk>0?'-'+hoursToHM(c.displayBrk):'–'}</td><td class="mono hl">${hoursToHM(c.displayNetOT)}</td><td>${c.night?'<span class="night-pill">🌙200฿</span>':'–'}</td><td class="green">฿${fmt(c.otInc)}</td><td class="green" style="font-size:13px;">฿${fmt(c.total)}</td></tr>`;
+    tbody.innerHTML+=`<tr>
+      <td>${i+1}</td>
+      <td class="mono">${r.date||'–'}</td>
+      <td><span class="type-badge ${r.dayType}">${tl}</span></td>
+      <td>${r.workIn||'–'}</td><td>${r.workOut||'–'}</td>
+      <td>${r.otIn||'–'}</td><td>${r.otOut||'–'}</td>
+      <td class="mono">${hoursToHM(c.displayRawOT)}</td>
+      <td class="orange">${c.displayBrk>0?'-'+hoursToHM(c.displayBrk):'–'}</td>
+      <td class="mono hl">${hoursToHM(c.displayNetOT)}</td>
+      <td>${c.night?'<span class="night-pill">🌙200฿</span>':'–'}</td>
+      <td class="green">฿${fmt(c.otInc)}</td>
+      <td class="green" style="font-size:13px;">฿${fmt(c.total)}</td>
+    </tr>`;
   });
-  
-  document.getElementById('sumGrand').textContent=`฿${fmt(grandTotal)}`; document.getElementById('sumGrandSub').textContent=`OT ฿${fmt(otTotal)} + Night Shift ฿${fmt(nightTotal)}`;
-  document.getElementById('sNormalAmt').textContent=`฿${fmt(totals.normal.inc)}`; document.getElementById('sOffAmt').textContent=`฿${fmt(totals.off.inc)}`; document.getElementById('sHolidayAmt').textContent=`฿${fmt(totals.holiday.inc)}`; document.getElementById('sNightAmt').textContent=`฿${fmt(nightTotal)}`;
+
+  const totalNetH = totals.normal.h + totals.off.h + totals.holiday.h;
+  const totalDays = totals.normal.days + totals.off.days + totals.holiday.days;
+
+  // ── hero ────────────────────────────────
+  document.getElementById('sumGrand').textContent    = `฿${fmt(grandTotal)}`;
+  document.getElementById('sumGrandSub').textContent = `OT ฿${fmt(otTotal)} + Night Shift ฿${fmt(nightTotal)}`;
+
+  // ── income cards ────────────────────────
+  document.getElementById('sNormalAmt').textContent  = `฿${fmt(totals.normal.inc)}`;
+  document.getElementById('sNormalSub').textContent  = totals.normal.days  ? `${totals.normal.days} วัน` : '—';
+  document.getElementById('sOffAmt').textContent     = `฿${fmt(totals.off.inc)}`;
+  document.getElementById('sOffSub').textContent     = totals.off.days     ? `${totals.off.days} วัน` : '—';
+  document.getElementById('sHolidayAmt').textContent = `฿${fmt(totals.holiday.inc)}`;
+  document.getElementById('sHolidaySub').textContent = totals.holiday.days ? `${totals.holiday.days} วัน` : '—';
+  document.getElementById('sNightAmt').textContent   = `฿${fmt(nightTotal)}`;
+  document.getElementById('sNightSub').textContent   = nightDays ? `${nightDays} วัน` : '—';
+
+  // ── hour cards ──────────────────────────
+  function fmtH(h){ if(!h) return '0 ชม.'; const hh=Math.floor(h); const mm=Math.round((h-hh)*60); return mm ? `${hh} ชม. ${mm} น.` : `${hh} ชม.`; }
+
+  document.getElementById('hNormal').textContent    = fmtH(totals.normal.h);
+  document.getElementById('hNormalSub').textContent = totals.normal.days ? `${totals.normal.days} วัน` : '—';
+  document.getElementById('hOff').textContent       = fmtH(totals.off.h);
+  document.getElementById('hOffSub').textContent    = totals.off.days    ? `${totals.off.days} วัน` : '—';
+  document.getElementById('hHoliday').textContent   = fmtH(totals.holiday.h);
+  document.getElementById('hHolidaySub').textContent= totals.holiday.days? `${totals.holiday.days} วัน` : '—';
+  document.getElementById('hTotal').textContent     = fmtH(totalNetH);
+  document.getElementById('hTotalSub').textContent  = totalDays ? `รวม ${totalDays} วัน` : '—';
+
+  document.getElementById('tableHead').textContent = `รายการทั้งหมด (${filtered.length} รายการ)`;
 }
 
 // ════════════════════════════════════════════
